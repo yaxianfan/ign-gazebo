@@ -2,11 +2,8 @@
 
 ### Ignition Gazebo 0.1.0
 
-1. Added basic System and Entity classes along with a Server and simple
-   executable.
+1. Added basic System class
+    * [Pull request 2](https://bitbucket.org/ignitionrobotics/ign-gazebo/pull-request/2)
 
-1. Added basic Entity class.
-    * [Pull request 3](https://bitbucket.org/ignitionrobotics/ign-gazebo/pull-request/3)
-
-1. Added a basic System class.
-    * [Pull request 4](https://bitbucket.org/ignitionrobotics/ign-gazebo/pull-request/4)
+1. Added basic Entity class
+    * [Pull request 1](https://bitbucket.org/ignitionrobotics/ign-gazebo/pull-request/1)

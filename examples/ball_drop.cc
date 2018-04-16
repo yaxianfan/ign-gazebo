@@ -14,17 +14,26 @@
  * limitations under the License.
  *
 */
-#include "ignition/gazebo/System.hh"
 
-using namespace ignition::gazebo;
+#include <ignition/gazebo.hh>
+#include <sdf/Link.hh>
+#include <sdf/Model.hh>
 
-/////////////////////////////////////////////////
-void System::EntityCreated(const Entity &/*_entity*/)
+namespace ign = ignition;
+namespace gz = ignition::gazebo;
+
+int main()
 {
-}
+  sdf::Model model;
+  model.SetName("ball");
+  sdf::Link *link = model.AddLink({"link", ign::math::Pose3d::Zero});
 
-/////////////////////////////////////////////////
-bool System::Update()
-{
-  return false;
+  // Create the Gazebo server
+  ignition::gazebo::Server server;
+
+  // Add a ball model to the server
+  gz::Entity ball = server.CreateEntity(model);
+
+  // Run the server
+  return server.Step(1);
 }
