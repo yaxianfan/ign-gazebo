@@ -9,7 +9,7 @@ project(ignition-gazebo VERSION 0.1.0)
 # Find ignition-cmake
 #============================================================================
 # If you get an error at this line, you need to install ignition-cmake
-find_package(ignition-cmake1 REQUIRED)
+find_package(ignition-cmake2 REQUIRED)
 
 #============================================================================
 # Configure the project
@@ -25,19 +25,32 @@ ign_configure_project()
 # Search for project-specific dependencies
 #============================================================================
 
+find_package(SDFormat REQUIRED VERSION 7.0.0)
+include_directories(${SDFormat_INCLUDE_DIRS})
+
+#--------------------------------------
+# Find ignition-math
+set(IGN_MATH_VER 6)
+ign_find_package(ignition-math${IGN_MATH_VER} REQUIRED)
+
+#--------------------------------------
+# Find ignition-msgs
+set(IGN_MSGS_VER 3)
+ign_find_package(ignition-msgs${IGN_MSGS_VER} REQUIRED)
+
 #--------------------------------------
 # Find ignition-transport
-set(IGN_TRANSPORT_VER 5)
+set(IGN_TRANSPORT_VER 6)
 ign_find_package(ignition-transport${IGN_TRANSPORT_VER} REQUIRED)
 
 #--------------------------------------
 # Find ignition-common
-set(IGN_COMMON_VER 2)
+set(IGN_COMMON_VER 3)
 ign_find_package(ignition-common${IGN_COMMON_VER} REQUIRED)
 
 #--------------------------------------
 # Find ignition-gui
-set(IGN_GUI_VER 0)
+set(IGN_GUI_VER 1)
 ign_find_package(ignition-gui${IGN_GUI_VER} REQUIRED)
 find_package (Qt5
   COMPONENTS

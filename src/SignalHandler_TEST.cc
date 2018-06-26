@@ -14,18 +14,18 @@
  * limitations under the License.
  *
 */
-#include "ignition/gazebo/System.hh"
-#include "ignition/gazebo/System.hh"
 
-using namespace ignition::gazebo;
+#include "SignalHandler.hh"
+#include <gtest/gtest.h>
 
-/////////////////////////////////////////////////
-void System::EntityCreated(const Entity &/*_entity*/)
-{
-}
+using namespace ignition;
 
 /////////////////////////////////////////////////
-bool System::Update()
+TEST(SignalHandler, Multiple)
 {
-  return false;
+  gazebo::SignalHandler handler1;
+  gazebo::SignalHandler handler2;
+
+  EXPECT_TRUE(handler1.Initialized());
+  EXPECT_TRUE(handler2.Initialized());
 }
