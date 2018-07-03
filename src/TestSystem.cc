@@ -16,15 +16,45 @@
 */
 #include "ignition/gazebo/TestSystem.hh"
 
+#include <vector>
+#include <iostream>
+#include "ignition/gazebo/Entity.hh"
+
 using namespace ignition::gazebo;
+
+/// \brief Private data.
+class ignition::gazebo::TestSystemPrivate
+{
+  // \todo(nkoenig): Need to make sure that these are data-aligned.
+  public: std::vector<Entity> entities;
+};
 
 //////////////////////////////////////////////////
 TestSystem::TestSystem()
-  : System()
+  : System(), dataPtr(new TestSystemPrivate)
 {
 }
 
 //////////////////////////////////////////////////
 TestSystem::~TestSystem()
 {
+  delete this->dataPtr;
+  this->dataPtr = nullptr;
+}
+
+/////////////////////////////////////////////////
+void TestSystem::EntityCreated(const Entity &_entity)
+{
+  // The test system adds all entities, for now.
+  this->dataPtr->entities.push_back(_entity);
+}
+
+//////////////////////////////////////////////////
+bool TestSystem::Update()
+{
+  // Process all entities...just output some information.
+  for (const auto &entity : this->dataPtr->entities)
+    std::cout << entity.Id() << std::endl;
+
+  return true;
 }

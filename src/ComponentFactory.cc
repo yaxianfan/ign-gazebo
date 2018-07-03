@@ -14,17 +14,10 @@
  * limitations under the License.
  *
 */
-#include "ignition/gazebo/System.hh"
 
-using namespace ignition::gazebo;
+#include "ComponentFactory.hh"
+#include <map>
+#include <memory>
 
-/////////////////////////////////////////////////
-void System::EntityCreated(const Entity &/*_entity*/)
-{
-}
-
-/////////////////////////////////////////////////
-bool System::Update()
-{
-  return false;
-}
+using namespace ignition;
+using namespace gazebo;

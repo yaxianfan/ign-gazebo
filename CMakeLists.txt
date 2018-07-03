@@ -9,7 +9,7 @@ project(ignition-gazebo VERSION 0.1.0)
 # Find ignition-cmake
 #============================================================================
 # If you get an error at this line, you need to install ignition-cmake
-find_package(ignition-cmake1 REQUIRED)
+find_package(ignition-cmake2 REQUIRED)
 
 #============================================================================
 # Configure the project
@@ -24,6 +24,19 @@ ign_configure_project()
 #============================================================================
 # Search for project-specific dependencies
 #============================================================================
+
+find_package(SDFormat REQUIRED VERSION 7.0.0)
+include_directories(${SDFormat_INCLUDE_DIRS})
+
+#--------------------------------------
+# Find ignition-math
+set(IGN_MATH_VER 6)
+ign_find_package(ignition-math${IGN_MATH_VER} REQUIRED)
+
+#--------------------------------------
+# Find ignition-msgs
+set(IGN_MSGS_VER 3)
+ign_find_package(ignition-msgs${IGN_MSGS_VER} REQUIRED)
 
 #--------------------------------------
 # Find ignition-transport
