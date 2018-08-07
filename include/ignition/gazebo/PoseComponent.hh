@@ -23,7 +23,6 @@
 #include <ignition/math/Pose3.hh>
 
 #include <ignition/gazebo/config.hh>
-#include <ignition/gazebo/EntityComponentManager.hh>
 #include <ignition/gazebo/Export.hh>
 
 namespace ignition
@@ -50,7 +49,7 @@ namespace ignition
 
       /// \brief Move Constructor
       /// \param[in] _pose Pose component to move.
-      public: PoseComponent(PoseComponent &&_pose);
+      public: PoseComponent(PoseComponent &&_pose) noexcept;
 
       /// \brief Destructor.
       public: virtual ~PoseComponent();

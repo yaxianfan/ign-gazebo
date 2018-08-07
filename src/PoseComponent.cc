@@ -51,7 +51,7 @@ PoseComponent::PoseComponent(const PoseComponent &_pose)
 }
 
 //////////////////////////////////////////////////
-PoseComponent::PoseComponent(PoseComponent &&_pose)
+PoseComponent::PoseComponent(PoseComponent &&_pose) noexcept
   : dataPtr(std::move(_pose.dataPtr))
 {
 }

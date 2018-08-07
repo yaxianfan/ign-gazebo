@@ -16,6 +16,8 @@ set (sources
   ServerConfig.cc
   ServerPrivate.cc
   System.cc
+  WorldStatisticsComponent.cc
+  WorldStatisticsSystem.cc
 )
 
 set (gtest_sources

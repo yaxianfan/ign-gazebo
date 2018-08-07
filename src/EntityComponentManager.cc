@@ -185,7 +185,7 @@ bool EntityComponentManager::HasEntity(EntityId _id) const
 /////////////////////////////////////////////////
 ComponentKey EntityComponentManager::CreateComponentImplementation(
     const EntityId _entityId, const ComponentTypeId _componentTypeId,
-    const std::any &_data)
+    const void *_data)
 {
   // Instantiate the new component.
   ComponentId componentId =
@@ -214,7 +214,6 @@ EntityQueryId EntityComponentManager::AddQuery(const EntityQuery &_query)
   EntityQuery &query = this->dataPtr->queries.back();
 
   EntityQueryId result = this->dataPtr->queries.size() - 1;
-
   const std::set<ComponentTypeId> &types = _query.ComponentTypes();
 
   // \todo(nkoenig) Check that the entities vector is always compact,
@@ -222,9 +221,9 @@ EntityQueryId EntityComponentManager::AddQuery(const EntityQuery &_query)
   for (size_t id = 0; id < this->dataPtr->entities.size(); ++id)
   {
     // Check that the entity has the required components
-    if (this->dataPtr->EntityMatches(id, types))
+    if (this->dataPtr->EntityMatches(this->dataPtr->entities[id].Id(), types))
     {
-      query.AddEntity(id);
+      query.AddEntity(this->dataPtr->entities[id].Id());
     }
   }
 
@@ -237,7 +236,7 @@ bool EntityComponentManagerPrivate::EntityMatches(EntityId _id,
 {
   const std::vector<ComponentKey> &comps = this->entityComponents.at(_id);
 
-  // \todo(nkoenig) The performance of this coude be improved. Ideally we
+  // \todo(nkoenig) The performance of this could be improved. Ideally we
   // wouldn't need two loops to confirm that an entity matches a set of
   // types. Itmight be possible to create bitmask for component sets.
   // Fixing this might not be hight priority, unless we expect frequent
