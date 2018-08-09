@@ -38,6 +38,8 @@ Server::Server(const ServerConfig &_config)
 
     this->dataPtr->CreateEntities(root);
   }
+
+  this->dataPtr->InitSystems();
 }
 
 /////////////////////////////////////////////////
@@ -115,4 +117,11 @@ size_t Server::SystemCount() const
 EntityComponentManager &Server::EntityComponentMgr() const
 {
   return *(this->dataPtr->entityCompMgr.get());
+}
+
+/////////////////////////////////////////////////
+void Server::SetUpdatePeriod(
+    const std::chrono::steady_clock::duration &_updatePeriod)
+{
+  this->dataPtr->updatePeriod = _updatePeriod;
 }

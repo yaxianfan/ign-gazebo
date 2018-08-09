@@ -31,12 +31,15 @@
 
 #include <ignition/transport/Node.hh>
 #include <ignition/common/SignalHandler.hh>
+#include <ignition/common/WorkerPool.hh>
 
 #include "ignition/gazebo/Entity.hh"
 #include "ignition/gazebo/EntityComponentManager.hh"
 #include "ignition/gazebo/EntityQueryRegistrar.hh"
 #include "ignition/gazebo/System.hh"
 #include "ignition/gazebo/Types.hh"
+
+using namespace std::chrono_literals;
 
 namespace ignition
 {
@@ -82,6 +85,9 @@ namespace ignition
       /// \param[in] _root SDF root object.
       public: void CreateEntities(const sdf::Root &_root);
 
+      /// \brief Initialize all the systems.
+      public: void InitSystems();
+
       /// \brief Signal handler callback
       /// \param[in] _sig The signal number
       private: void OnSignal(int _sig);
@@ -108,9 +114,16 @@ namespace ignition
       /// \brief Manager of all components.
       public: std::shared_ptr<EntityComponentManager> entityCompMgr;
 
-      public: EntityQueryRegistrar entityQueryRegistrar;
-
+      /// \brief All the systems.
       public: std::vector<SystemInternal> systems;
+
+      /// \brief A pool of worker threads.
+      public: common::WorkerPool workerPool;
+
+      public: std::chrono::steady_clock::time_point prevStepWallTime;
+      public: std::chrono::steady_clock::duration sleepOffset{0};
+
+      public: std::chrono::steady_clock::duration updatePeriod{2ms};
     };
     }
   }
