@@ -14,13 +14,14 @@
  * limitations under the License.
  *
 */
-#ifndef IGNITION_GAZEBO_SYSTEM_HH_
-#define IGNITION_GAZEBO_SYSTEM_HH_
+#ifndef IGNITION_GAZEBO_SYSTEM_QUERY_RESPONSE_HH_
+#define IGNITION_GAZEBO_SYSTEM_QUERY_RESPONSE_HH_
 
 #include <memory>
 #include <string>
 #include <ignition/gazebo/config.hh>
-#include <ignition/gazebo/EntityQueryRegistrar.hh>
+#include <ignition/gazebo/EntityQuery.hh>
+#include <ignition/gazebo/EntityComponentManager.hh>
 #include <ignition/gazebo/Export.hh>
 
 namespace ignition
@@ -30,39 +31,39 @@ namespace ignition
     // Inline bracket to help doxygen filtering.
     inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
     // Forward declarations.
-    class SystemPrivate;
+    class SystemQueryResponsePrivate;
 
-    /// \class System System.hh ignition/gazebo/System.hh
+    /** \class SystemQueryResponse SystemQueryResponse.hh \
+     * ignition/gazebo/SystemQueryResponse.hh
+    **/
     /// \brief Base class for a System.
     ///
     /// A System operates on Entities that have certain Components. A System
     /// will only operate on an Entity if it has all of the required
     /// Components.
-    class IGNITION_GAZEBO_VISIBLE System
+    class IGNITION_GAZEBO_VISIBLE SystemQueryResponse
     {
       /// \brief Constructor
-      /// \param[in] A name for the system.
-      /// (louise) Does it need to be unique? Check what it's used for.
-      public: explicit System(const std::string &_name);
+      /// \param[in] _query The entity query.
+      /// \param[in] _query The entity component component manager.
+      public: SystemQueryResponse(const EntityQuery &_query,
+                  EntityComponentManager &_ecMgr);
 
       /// \brief Destructor
-      public: virtual ~System();
+      public: ~SystemQueryResponse();
 
-      /// \brief Initialize the system.
-      /// (louise) Is the system useful before calling init? Can Init be called
-      /// twice? Good to add more tests.
-      public: virtual void Init(EntityQueryRegistrar &_registrar);
+      /// \brief Get the EntityQuery.
+      /// \return Reference to the entity query associated with this
+      /// response.
+      public: const EntityQuery &Query() const;
 
-      /// \brief Get the name of the system.
-      /// \return The name.
-      public: const std::string &Name() const;
+      /// \brief Get the EntityComponentManager, which can be used to access
+      /// entities and their components.
+      /// \return A reference to the EntityComponentManager.
+      public: EntityComponentManager &EntityComponentMgr() const;
 
-      /// \brief Set the name of the System
-      /// \param[in] _name The name.
-      public: void SetName(const std::string &_name) const;
-
-      /// \brief Pointer to private data.
-      private: std::unique_ptr<SystemPrivate> dataPtr;
+      /// \brief Private data pointer.
+      private: std::unique_ptr<SystemQueryResponsePrivate> dataPtr;
     };
     }
   }
