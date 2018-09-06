@@ -225,18 +225,20 @@ void SimulationRunner::PublishStats(const UpdateInfo &_info)
 /////////////////////////////////////////////////
 void SimulationRunner::UpdateSystems(const UpdateInfo &_info)
 {
-  // Update all the systems in parallel
+  // \todo(nkoenig)  Systems used to be updated in parallel using
+  // an ignition::common::WorkerPool. There is overhead associated with
+  // this, most notably the creation and destruction of WorkOrders (see
+  // WorkerPool.cc). We could turn on parallel updates in the future, and/or
+  // turn it on if there are sufficient systems. More testing is required.
+
+  // Update all the systems
   for (SystemInternal &system : this->systems)
   {
-    this->workerPool.AddWork([&system, &_info, this] ()
+    for (EntityQueryCallback &cb : system.updates)
     {
-      for (EntityQueryCallback &cb : system.updates)
-      {
-        cb(_info, this->entityCompMgr);
-      }
-    });
+      cb(_info, this->entityCompMgr);
+    }
   }
-  this->workerPool.WaitForResults();
 }
 
 /////////////////////////////////////////////////

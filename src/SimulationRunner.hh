@@ -89,6 +89,7 @@ namespace ignition
 
       /// \brief Run the simulationrunner.
       /// \param[in] _iterations Number of iterations.
+      /// \return True if the operation completed successfully.
       public: bool Run(const uint64_t _iterations);
 
       /// \brief Update all the systems
@@ -153,7 +154,7 @@ namespace ignition
       public: EntityComponentManager entityCompMgr;
 
       /// \brief A pool of worker threads.
-      public: common::WorkerPool workerPool;
+      public: common::WorkerPool workerPool{2};
 
       /// \brief Wall time of the previous update.
       public: std::chrono::steady_clock::time_point prevUpdateRealTime;
