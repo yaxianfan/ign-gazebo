@@ -63,15 +63,15 @@ void Physics::Init(std::vector<EntityQueryCallback> &_cbs)
 void PhysicsPrivate::OnUpdate(const UpdateInfo _info,
     EntityComponentManager &_manager)
 {
-  igndbg << "Sim time ["
-         << std::chrono::duration<double>(_info.simTime).count()
-         << "] Real time ["
-         << std::chrono::duration<double>(_info.realTime).count()
-         << "] Iterations ["
-         << _info.iterations
-         << "] dt ["
-         << std::chrono::duration<double>(_info.dt).count()
-         << "]" << std::endl;
+//  igndbg << "Sim time ["
+//         << std::chrono::duration<double>(_info.simTime).count()
+//         << "] Real time ["
+//         << std::chrono::duration<double>(_info.realTime).count()
+//         << "] Iterations ["
+//         << _info.iterations
+//         << "] dt ["
+//         << std::chrono::duration<double>(_info.dt).count()
+//         << "]" << std::endl;
 
   // Skip physics update if paused
   if (_info.dt.count() == 0)
@@ -88,8 +88,8 @@ void PhysicsPrivate::OnUpdate(const UpdateInfo _info,
         const components::Name *_name,
         const components::Pose *_pose)
     {
-      igndbg << "  --  " << _name->Data() << " pose [" << _pose->Data()
-             << "]\n";
+//      igndbg << "  --  " << _name->Data() << " pose [" << _pose->Data()
+//             << "]\n";
     });
 
   // \todo(louise) Step ign-physics world by _info.dt
