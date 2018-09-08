@@ -22,12 +22,14 @@
 #include <ignition/rendering/RenderingIface.hh>
 #include <ignition/rendering/Scene.hh>
 #include <ignition/rendering/Visual.hh>
+#include <sdf/Box.hh>
 
 #include "ignition/gazebo/EntityComponentManager.hh"
 
 #include "ignition/gazebo/systems/Rendering.hh"
+#include "ignition/gazebo/components/Geometry.hh"
 #include "ignition/gazebo/components/Material.hh"
-#include "ignition/gazebo/components/Name.hh"
+#include "ignition/gazebo/components/ParentEntity.hh"
 #include "ignition/gazebo/components/Pose.hh"
 #include "ignition/gazebo/components/World.hh"
 
@@ -44,7 +46,11 @@ class ignition::gazebo::systems::RenderingPrivate
   public: void OnUpdate(const UpdateInfo _info,
       EntityComponentManager &_manager);
 
+  /// \brief Maps entities to visuals.
   public: std::map<EntityId, rendering::VisualPtr> entityMap;
+
+  /// \brief Keep pointer to the scene.
+  public: rendering::ScenePtr scene;
 
   // TODO(louise) male all these configurable
   /// \brief Engine Name
@@ -57,7 +63,7 @@ class ignition::gazebo::systems::RenderingPrivate
   public: math::Color ambientLight = math::Color(0.3, 0.3, 0.3);
 
   /// \brief Background color
-  public: math::Color backgroundColor = math::Color(0.3, 0.3, 0.8);
+  public: math::Color backgroundColor = math::Color(0.7, 0.7, 0.9);
 };
 
 //////////////////////////////////////////////////
@@ -74,14 +80,33 @@ Rendering::Rendering()
   }
 
   // Scene
-  auto scene = engine->SceneByName(this->dataPtr->sceneName);
-  if (!scene)
+  this->dataPtr->scene = engine->SceneByName(this->dataPtr->sceneName);
+  if (!this->dataPtr->scene)
   {
     igndbg << "Create scene [" << this->dataPtr->sceneName << "]" << std::endl;
-    scene = engine->CreateScene(this->dataPtr->sceneName);
-    scene->SetAmbientLight(this->dataPtr->ambientLight);
-    scene->SetBackgroundColor(this->dataPtr->backgroundColor);
+    this->dataPtr->scene = engine->CreateScene(this->dataPtr->sceneName);
+    this->dataPtr->scene->SetAmbientLight(this->dataPtr->ambientLight);
+    this->dataPtr->scene->SetBackgroundColor(this->dataPtr->backgroundColor);
   }
+  else
+  {
+    ignwarn << "Scene [" << this->dataPtr->sceneName << "] created before rendering system."
+            << std::endl;
+  }
+
+  // Debug: why is this box not showing?!
+  // Is the scene ever being repainted? :(
+  auto green = this->dataPtr->scene->CreateMaterial();
+  green->SetAmbient(0.0, 0.5, 0.0);
+  green->SetDiffuse(0.0, 0.7, 0.0);
+  green->SetSpecular(0.5, 0.5, 0.5);
+  green->SetShininess(50);
+  green->SetReflectivity(0);
+
+  auto box = this->dataPtr->scene->CreateVisual();
+  box->AddGeometry(this->dataPtr->scene->CreateBox());
+  box->SetMaterial(green);
+  this->dataPtr->scene->RootVisual()->AddChild(box);
 }
 
 //////////////////////////////////////////////////
@@ -101,21 +126,73 @@ void Rendering::Init(std::vector<EntityQueryCallback> &_cbs)
 void RenderingPrivate::OnUpdate(const UpdateInfo /*_info*/,
     EntityComponentManager &_manager)
 {
-  // TODO(louise) Add new visuals to the scen, keeping entity hierarchy
-  // TODO(louise) Keep all visual's poses in map, including visuals without geometry
-  // TODO(louise) Update visual poses every iteration
+  // Everything which has a pose becomes a node in the scene graph (i.e. a rendering::Visual),
+  // even if it won't have a geometry, because their pose may affect children.
+  _manager.Each<components::ParentEntity,
+                components::Pose>(
+    [this, &_manager](const EntityId &_entity,
+        const components::ParentEntity *_parentComp,
+        const components::Pose *_poseComp)
+    {
+      auto vis = this->entityMap[_entity];
 
-//  _manager.Each<components::Name,
-//                components::Material,
-//                components::Pose>(
-//    [&](const EntityId &/*_entity*/,
-//        const components::Name *_name,
-//        const components::Material *_material,
-//        const components::Pose *_pose)
-//    {
-//      igndbg << "  --  " << _name->Data() << " pose [" << _pose->Data()
-//             << "]\n";
-//    });
+      // Visual not created yet, create it
+      if (!vis)
+      {
+        vis = this->scene->CreateVisual();
+      }
+
+      // Set pose
+      vis->SetLocalPosition(_poseComp->Data().Pos());
+      vis->SetLocalRotation(_poseComp->Data().Rot());
+
+      // Only pose can be updated after creation, so shortcut here if visual has
+      // already been created
+      if (nullptr != this->entityMap[_entity])
+      {
+        return;
+      }
+
+      // Add to parent
+      // TODO(louise) don't assume parent was created before child
+      auto parentVis = this->entityMap[_parentComp->Id()];
+      if (!parentVis)
+      {
+        parentVis = this->scene->RootVisual();
+      }
+      parentVis->AddChild(vis);
+
+      // Geometry
+      if (auto geomComp = _manager.Component<components::Geometry>(_entity))
+      {
+        if (geomComp->Data().Type() == sdf::GeometryType::BOX && geomComp->Data().BoxShape())
+        {
+          auto box = this->scene->CreateBox();
+          vis->AddGeometry(box);
+
+          auto boxSdf = geomComp->Data().BoxShape();
+          vis->SetLocalScale(boxSdf->Size());
+        }
+        else
+        {
+          ignerr << "Geometry type [" << static_cast<int>(geomComp->Data().Type())
+                 << "] not supported" << std::endl;
+        }
+      }
+
+      // Material
+      if (auto matComp = _manager.Component<components::Material>(_entity))
+      {
+        auto mat = this->scene->CreateMaterial();
+        mat->SetAmbient(matComp->Data().Ambient());
+        mat->SetDiffuse(matComp->Data().Diffuse());
+        mat->SetSpecular(matComp->Data().Specular());
+
+        vis->SetMaterial(mat);
+      }
+
+      this->entityMap[_entity] = vis;
+    });
 }
 
 IGNITION_ADD_PLUGIN(ignition::gazebo::systems::Rendering,
