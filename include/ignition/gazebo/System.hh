@@ -17,11 +17,10 @@
 #ifndef IGNITION_GAZEBO_SYSTEM_HH_
 #define IGNITION_GAZEBO_SYSTEM_HH_
 
-#include <vector>
-
+#include <ignition/common/Time.hh>
 #include <ignition/gazebo/config.hh>
+#include <ignition/gazebo/EntityComponentManager.hh>
 #include <ignition/gazebo/Export.hh>
-#include <ignition/gazebo/Types.hh>
 
 namespace ignition
 {
@@ -44,8 +43,26 @@ namespace ignition
       public: virtual ~System();
 
       /// \brief Initialize the system.
-      /// \param[out] _cbs A set of callbacks.
-      public: virtual void Init(std::vector<EntityQueryCallback> &_cbs) = 0;
+      public: virtual void Init() = 0;
+
+      /// \brief Called when an entity is added to the simulation.
+      // //TODO(mjcarroll): Should this be filtered by matching components?
+      public: virtual void EntityAdded(const Entity &_entity,
+                                       const EntityComponentManager &_ecm);
+
+      /// \brief Called when an entity is removed from the simulation.
+      // //TODO(mjcarroll): Should this be filtered by matching components?
+      public: virtual void EntityRemoved(const Entity &_entity,
+                                         const EntityComponentManager &_ecm);
+
+      public: virtual void PreUpdate(const UpdateInfo &_info,
+                                     EntityComponentManager &_ecm);
+
+      public: virtual void Update(const UpdateInfo &_info,
+                                  EntityComponentManager &_ecm);
+
+      public: virtual void PostUpdate(const UpdateInfo &_info,
+                                      const EntityComponentManager &_ecm);
     };
     }
   }

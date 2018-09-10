@@ -123,7 +123,7 @@ void SimulationRunner::InitSystems()
   {
     this->workerPool.AddWork([&system, this] ()
     {
-      system.system->Init(system.updates);
+      system.system->Init();
     });
   }
 
@@ -227,7 +227,7 @@ void SimulationRunner::AddSystem(const SystemPtr &_system)
 {
   this->systems.push_back(SystemInternal(_system));
   auto& systemInternal = this->systems.back();
-  systemInternal.system->Init(systemInternal.updates);
+  systemInternal.system->Init();
 }
 
 /////////////////////////////////////////////////
@@ -239,13 +239,17 @@ void SimulationRunner::UpdateSystems()
   // WorkerPool.cc). We could turn on parallel updates in the future, and/or
   // turn it on if there are sufficient systems. More testing is required.
 
-  // Update all the systems
   for (SystemInternal &system : this->systems)
   {
-    for (EntityQueryCallback &cb : system.updates)
-    {
-      cb(this->currentInfo, this->entityCompMgr);
-    }
+    system.system->PreUpdate(this->currentInfo, this->entityCompMgr);
+  }
+  for (SystemInternal &system : this->systems)
+  {
+    system.system->Update(this->currentInfo, this->entityCompMgr);
+  }
+  for (SystemInternal &system : this->systems)
+  {
+    system.system->PostUpdate(this->currentInfo, this->entityCompMgr);
   }
 }
 
@@ -266,7 +270,6 @@ bool SimulationRunner::Run(const uint64_t _iterations)
 
   // Keep track of wall clock time
   this->realTimeWatch.Start();
-
   // Variables for time keeping.
   std::chrono::steady_clock::time_point startTime;
   std::chrono::steady_clock::duration sleepTime;

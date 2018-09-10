@@ -33,8 +33,7 @@ TestSystem::~TestSystem()
 {
 }
 
-/////////////////////////////////////////////////
-void TestSystem::Init(std::vector<EntityQueryCallback> &/*_cbs*/)
+void TestSystem::Init()
 {
 }
 

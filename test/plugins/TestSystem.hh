@@ -31,8 +31,7 @@ namespace ignition
 
       public: virtual ~TestSystem();
 
-      public: virtual void Init(
-                  std::vector<EntityQueryCallback> &_cbs) override final;
+      public: virtual void Init() override final;
     };
     }
   }

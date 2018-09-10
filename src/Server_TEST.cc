@@ -46,20 +46,32 @@ class MockSystem : public gazebo::System
   // Keep the number of calls to Init
   public: size_t initCallCount = 0;
   public: size_t updateCallCount = 0;
+  public: size_t preUpdateCallCount = 0;
+  public: size_t postUpdateCallCount = 0;
+
   public:
-    void Init(std::vector<gazebo::EntityQueryCallback> &_cbs) override
+    void Init() override
     {
       ++this->initCallCount;
-      _cbs.push_back(
-          std::bind(&MockSystem::OnUpdate, this,
-            std::placeholders::_1, std::placeholders::_2));
     }
 
   public:
-    void OnUpdate(const gazebo::UpdateInfo /*_info*/,
-                  gazebo::EntityComponentManager & /*_manager*/)
+    void PreUpdate(const gazebo::UpdateInfo & /*_info*/,
+                gazebo::EntityComponentManager & /*_manager*/) override
+    {
+      ++this->preUpdateCallCount;
+    }
+
+    void Update(const gazebo::UpdateInfo & /*_info*/,
+                gazebo::EntityComponentManager & /*_manager*/) override
     {
       ++this->updateCallCount;
+    }
+
+    void PostUpdate(const gazebo::UpdateInfo & /*_info*/,
+                const gazebo::EntityComponentManager & /*_manager*/) override
+    {
+      ++this->postUpdateCallCount;
     }
 };
 

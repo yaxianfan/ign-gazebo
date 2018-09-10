@@ -21,8 +21,8 @@
 
 #include "ignition/gazebo/EntityComponentManager.hh"
 
-#include "ignition/gazebo/systems/Physics.hh"
 #include "ignition/gazebo/components/Name.hh"
+#include "ignition/gazebo/systems/Physics.hh"
 #include "ignition/gazebo/components/Pose.hh"
 #include "ignition/gazebo/components/World.hh"
 
@@ -52,11 +52,8 @@ Physics::~Physics()
 }
 
 //////////////////////////////////////////////////
-void Physics::Init(std::vector<EntityQueryCallback> &_cbs)
+void Physics::Init()
 {
-  _cbs.push_back(
-      std::bind(&PhysicsPrivate::OnUpdate, this->dataPtr.get(),
-        std::placeholders::_1, std::placeholders::_2));
 }
 
 //////////////////////////////////////////////////
