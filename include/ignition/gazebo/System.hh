@@ -28,6 +28,7 @@ namespace ignition
   {
     // Inline bracket to help doxygen filtering.
     inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
+
     /// \class System System.hh ignition/gazebo/System.hh
     /// \brief Base class for a System.
     ///
@@ -44,25 +45,21 @@ namespace ignition
 
       /// \brief Initialize the system.
       public: virtual void Init() = 0;
+    };
 
-      /// \brief Called when an entity is added to the simulation.
-      // //TODO(mjcarroll): Should this be filtered by matching components?
-      public: virtual void EntityAdded(const Entity &_entity,
-                                       const EntityComponentManager &_ecm);
+    class IPreUpdate
+    {
+      public: virtual void PreUpdate() = 0;
+    };
 
-      /// \brief Called when an entity is removed from the simulation.
-      // //TODO(mjcarroll): Should this be filtered by matching components?
-      public: virtual void EntityRemoved(const Entity &_entity,
-                                         const EntityComponentManager &_ecm);
+    class IUpdate
+    {
+      public: virtual void Update() = 0;
+    };
 
-      public: virtual void PreUpdate(const UpdateInfo &_info,
-                                     EntityComponentManager &_ecm);
-
-      public: virtual void Update(const UpdateInfo &_info,
-                                  EntityComponentManager &_ecm);
-
-      public: virtual void PostUpdate(const UpdateInfo &_info,
-                                      const EntityComponentManager &_ecm);
+    class IPostUpdate
+    {
+      public: virtual void PostUpdate() = 0;
     };
     }
   }

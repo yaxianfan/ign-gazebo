@@ -31,7 +31,11 @@ namespace systems
   inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
   /// \class Null Null.hh ignition/gazebo/systems/Null.hh
   /// \brief Minimal system implementation
-  class IGNITION_GAZEBO_VISIBLE Null: public System
+  class IGNITION_GAZEBO_VISIBLE Null
+    : public System,
+      public virtual IPreUpdate,
+      public virtual IUpdate,
+      public virtual IPostUpdate
   {
     /// \brief Constructor
     public: Null();
@@ -40,7 +44,10 @@ namespace systems
     public: virtual ~Null();
 
     // Documentation inherited
-    public: void Init() override final;
+    public: void Init() override;
+    public: void PreUpdate() override;
+    public: void Update() override;
+    public: void PostUpdate() override;
   };
   }
 }

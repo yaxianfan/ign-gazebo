@@ -115,7 +115,7 @@ void ServerPrivate::CreateEntities(const sdf::Root &_root)
     auto world = _root.WorldByIndex(worldIndex);
     auto element = world->Element();
 
-    std::vector<std::shared_ptr<System>> systems;
+    std::vector<SystemManager::SystemPtr> systems;
 
     if (element->HasElement("plugin"))
     {
@@ -125,7 +125,7 @@ void ServerPrivate::CreateEntities(const sdf::Root &_root)
         auto system = systemManager.LoadPlugin(pluginElem);
         if (system)
         {
-          systems.push_back(system);
+          systems.push_back(system.value());
         }
         pluginElem = pluginElem->GetNextElement("plugin");
       }

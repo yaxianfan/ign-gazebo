@@ -42,12 +42,14 @@ class ServerFixture : public ::testing::TestWithParam<int>
     }
 };
 
-class MockSystem : public gazebo::System
+class MockSystem
+  : public gazebo::System,
+    public virtual gazebo::IPreUpdate,
+    public virtual gazebo::IUpdate,
+    public virtual gazebo::IPostUpdate
 {
   // Keep the number of calls to Init
   public: size_t initCallCount = 0;
-  public: size_t entityAddedCallCount = 0;
-  public: size_t entityRemovedCallCount = 0;
   public: size_t updateCallCount = 0;
   public: size_t preUpdateCallCount = 0;
   public: size_t postUpdateCallCount = 0;
@@ -56,20 +58,6 @@ class MockSystem : public gazebo::System
     void Init() override
     {
       ++this->initCallCount;
-    }
-
-  public:
-    void EntityAdded(const gazebo::Entity &/*_entity*/,
-                     const gazebo::EntityComponentManager &/*_ecm*/) override
-    {
-      ++this->entityAddedCallCount;
-    }
-
-  public:
-    void EntityRemoved(const gazebo::Entity &/*_entity*/,
-                       const gazebo::EntityComponentManager &/*_ecm*/) override
-    {
-      ++this->entityRemovedCallCount;
     }
 
   public:
@@ -251,7 +239,7 @@ TEST_P(ServerFixture, TwoServersMixedBlocking)
   EXPECT_EQ(1000u, *server2.IterationCount());
   EXPECT_FALSE(*server1.Running());
   EXPECT_FALSE(*server2.Running());
-}
+HasInterface}
 
 /////////////////////////////////////////////////
 TEST_P(ServerFixture, AddSystemWhileRunning)
@@ -268,7 +256,9 @@ TEST_P(ServerFixture, AddSystemWhileRunning)
   // Run the server to test whether we can add system while system is running
   server.Run();
   EXPECT_EQ(1u, *server.SystemCount());
+
   auto mockSystem = std::make_shared<MockSystem>();
+
   EXPECT_FALSE(*server.AddSystem(mockSystem));
   EXPECT_EQ(1u, *server.SystemCount());
 

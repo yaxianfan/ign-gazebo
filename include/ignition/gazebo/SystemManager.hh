@@ -18,12 +18,15 @@
 #define IGNITION_GAZEBO_SYSTEM_MANAGER_HH_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include <sdf/Element.hh>
 
 #include <ignition/gazebo/Export.hh>
 #include <ignition/gazebo/System.hh>
+
+#include <ignition/plugin/SpecializedPluginPtr.hh>
 
 namespace ignition
 {
@@ -38,7 +41,8 @@ namespace ignition
     /// \brief Class for loading/unloading System plugins.
     class IGNITION_GAZEBO_VISIBLE SystemManager
     {
-      public: using SystemPtr = std::shared_ptr<System>;
+      public: using SystemPtr = ignition::plugin::SpecializedPluginPtr<
+              System, IPreUpdate, IUpdate, IPostUpdate>;
 
       /// \brief Constructor
       public: explicit SystemManager();
@@ -53,14 +57,14 @@ namespace ignition
       /// \brief Load and instantiate system plugin from an SDF element.
       /// \param[in] _sdf SDF Element describing plugin instance to be loaded.
       /// \returns Shared pointer to system instance or nullptr.
-      public: SystemPtr LoadPlugin(sdf::ElementPtr _sdf);
+      public: std::optional<SystemPtr> LoadPlugin(sdf::ElementPtr _sdf);
 
       /// \brief Load and instantiate system plugin from name/filename.
       /// \param[in] _filename Shared library filename to load plugin from.
       /// \param[in] _name Class name to be instantiated.
       /// \param[in] _sdf SDF Element describing plugin instance to be loaded.
       /// \returns Shared pointer to system instance or nullptr.
-      public: SystemPtr LoadPlugin(const std::string &_filename,
+      public: std::optional<SystemPtr> LoadPlugin(const std::string &_filename,
                                    const std::string &_name,
                                    sdf::ElementPtr _sdf);
 

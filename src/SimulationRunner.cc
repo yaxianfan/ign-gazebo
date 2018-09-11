@@ -40,11 +40,10 @@ using namespace ignition;
 using namespace gazebo;
 
 using StringSet = std::unordered_set<std::string>;
-using SystemPtr = SimulationRunner::SystemPtr;
 
 //////////////////////////////////////////////////
 SimulationRunner::SimulationRunner(const sdf::World *_world,
-                                   const std::vector<SystemPtr> &_systems)
+    const std::vector<SystemManager::SystemPtr> &_systems)
 {
   // Keep world name
   this->worldName = _world->Name();
@@ -52,7 +51,7 @@ SimulationRunner::SimulationRunner(const sdf::World *_world,
   // Store systems
   for (auto &system : _systems)
   {
-    this->systems.push_back(SystemInternal(system));
+    this->AddSystem(system);
   }
 
   // Get the first physics profile
@@ -223,11 +222,24 @@ void SimulationRunner::PublishStats()
 }
 
 /////////////////////////////////////////////////
-void SimulationRunner::AddSystem(const SystemPtr &_system)
+void SimulationRunner::AddSystem(const SystemManager::SystemPtr &_system)
 {
   this->systems.push_back(SystemInternal(_system));
   auto& systemInternal = this->systems.back();
+
   systemInternal.system->Init();
+
+  if(systemInternal.preupdate) {
+    systems_preupdate.push_back(systemInternal.preupdate);
+  }
+
+  if(systemInternal.update) {
+    systems_update.push_back(systemInternal.update);
+  }
+
+  if(systemInternal.postupdate) {
+    systems_postupdate.push_back(systemInternal.postupdate);
+  }
 }
 
 /////////////////////////////////////////////////
@@ -239,17 +251,19 @@ void SimulationRunner::UpdateSystems()
   // WorkerPool.cc). We could turn on parallel updates in the future, and/or
   // turn it on if there are sufficient systems. More testing is required.
 
-  for (SystemInternal &system : this->systems)
+  for (auto& system : this->systems_preupdate)
   {
-    system.system->PreUpdate(this->currentInfo, this->entityCompMgr);
+    system->PreUpdate();
   }
-  for (SystemInternal &system : this->systems)
+
+  for (auto& system : this->systems_update)
   {
-    system.system->Update(this->currentInfo, this->entityCompMgr);
+    system->Update();
   }
-  for (SystemInternal &system : this->systems)
+
+  for (auto& system : this->systems_postupdate)
   {
-    system.system->PostUpdate(this->currentInfo, this->entityCompMgr);
+    system->PostUpdate();
   }
 }
 
@@ -465,7 +479,7 @@ void SimulationRunner::SetUpdatePeriod(
 
 /////////////////////////////////////////////////
 bool SimulationRunner::OnWorldControl(const msgs::WorldControl &_req,
-                                      msgs::Boolean &_res)
+    msgs::Boolean &_res)
 {
   // Play / pause
   this->paused = _req.pause();

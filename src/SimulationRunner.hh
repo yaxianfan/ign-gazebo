@@ -57,13 +57,25 @@ namespace ignition
     class SystemInternal
     {
       /// \brief Constructor
-      public: explicit SystemInternal(const std::shared_ptr<System> &_system)
-              : system(_system)
+      public: explicit SystemInternal(const SystemManager::SystemPtr &_system)
+              : specialized_system(_system),
+                system(specialized_system->QueryInterface<System>()),
+                preupdate(specialized_system->QueryInterface<IPreUpdate>()),
+                update(specialized_system->QueryInterface<IUpdate>()),
+                postupdate(specialized_system->QueryInterface<IPostUpdate>())
       {
       }
 
       /// \brief All of the systems.
-      public: std::shared_ptr<System> system;
+      public: SystemManager::SystemPtr specialized_system;
+
+      public: System* system;
+
+      public: IPreUpdate* preupdate;
+
+      public: IUpdate* update;
+
+      public: IPostUpdate* postupdate;
 
       /// \brief Vector of queries and callbacks
       public: std::vector<EntityQueryCallback> updates;
@@ -71,13 +83,11 @@ namespace ignition
 
     class IGNITION_GAZEBO_VISIBLE SimulationRunner
     {
-      public: using SystemPtr = std::shared_ptr<System>;
-
       /// \brief Constructor
       /// \param[in] _world Pointer to the SDF world.
       /// \param[in] _systems Systems to be loaded
       public: explicit SimulationRunner(const sdf::World *_world,
-                const std::vector<SystemPtr> &_systems);
+                const std::vector<SystemManager::SystemPtr> &_systems);
 
       /// \brief Destructor.
       public: virtual ~SimulationRunner();
@@ -95,7 +105,7 @@ namespace ignition
 
       /// \brief Add system after the simulation runner has been instantiated
       /// \param[in] _system System to be added
-      public: void AddSystem(const SystemPtr &_system);
+      public: void AddSystem(const SystemManager::SystemPtr &_system);
 
       /// \brief Update all the systems
       public: void UpdateSystems();
@@ -151,6 +161,10 @@ namespace ignition
 
       /// \brief All the systems.
       public: std::vector<SystemInternal> systems;
+
+      public: std::vector<IPreUpdate*> systems_preupdate;
+      public: std::vector<IUpdate*> systems_update;
+      public: std::vector<IPostUpdate*> systems_postupdate;
 
       /// \brief Manager of all components.
       public: EntityComponentManager entityCompMgr;
