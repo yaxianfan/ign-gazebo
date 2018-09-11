@@ -14,28 +14,26 @@
  * limitations under the License.
  *
 */
+#ifndef IGNITION_GAZEBO_COMPONENTS_JOINT_HH_
+#define IGNITION_GAZEBO_COMPONENTS_JOINT_HH_
 
-#include "TestSystem.hh"
+#include <ignition/gazebo/config.hh>
+#include <ignition/gazebo/Export.hh>
 
-#include <ignition/plugin/RegisterMore.hh>
-
-using namespace ignition;
-using namespace gazebo;
-
-/////////////////////////////////////////////////
-TestSystem::TestSystem()
-  : System()
+namespace ignition
 {
-}
-
-/////////////////////////////////////////////////
-TestSystem::~TestSystem()
+namespace gazebo
 {
-}
-
-void TestSystem::Init()
+namespace components
 {
+  // Inline bracket to help doxygen filtering.
+  inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
+  /// \brief This component identifies an entity as being a joint.
+  class IGNITION_GAZEBO_VISIBLE Joint
+  {
+  };
+  }
 }
-
-// Register this plugin
-IGNITION_ADD_PLUGIN(ignition::gazebo::TestSystem, ignition::gazebo::System)
+}
+}
+#endif
