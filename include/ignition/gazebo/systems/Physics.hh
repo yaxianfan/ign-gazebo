@@ -43,10 +43,26 @@ namespace systems
     /// \brief Destructor
     public: virtual ~Physics();
 
+    /// Documentation inherited
     public: void Init() override final;
 
-    public: void Update(const UpdateInfo &_info,
-                        EntityComponentManager &_manager) override;
+    /// Documentation inherited
+    public: virtual void EntityAdded(
+                const Entity &_entity,
+                const EntityComponentManager &_ecm) override final;
+
+    /// Documentation inherited
+    public: virtual void EntityRemoved(
+                const Entity &entity,
+                const EntityComponentManager &_ecm) override final;
+
+    /// Documentation inherited
+    public: virtual void Update(const UpdateInfo &_info,
+                EntityComponentManager &_ecm) override final;
+
+    /// Documentation inherited
+    public: virtual void PostUpdate(const UpdateInfo &_info,
+                const EntityComponentManager &_ecm) override final;
 
     /// \brief Private data pointer.
     private: std::unique_ptr<PhysicsPrivate> dataPtr;
