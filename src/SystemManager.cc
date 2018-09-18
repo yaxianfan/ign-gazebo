@@ -171,10 +171,8 @@ std::optional<SystemPluginPtr> SystemManager::LoadPlugin(
   {
     return plugin;
   }
-  else
-  {
-    return {};
-  }
+
+  return {};
 }
 
 //////////////////////////////////////////////////
