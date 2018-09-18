@@ -14,7 +14,7 @@
  * limitations under the License.
  *
 */
-#include "SystemManager.hh"
+#include <ignition/gazebo/SystemManager.hh>
 
 #include <optional>
 #include <string>
@@ -149,9 +149,10 @@ void SystemManager::AddSystemPluginPath(const std::string &_path)
 }
 
 //////////////////////////////////////////////////
-std::optional<SystemPluginPtr> SystemManager::LoadPlugin(const std::string &_filename,
-                                    const std::string &_name,
-                                    sdf::ElementPtr _sdf)
+std::optional<SystemPluginPtr> SystemManager::LoadPlugin(
+  const std::string &_filename,
+  const std::string &_name,
+  sdf::ElementPtr _sdf)
 {
   ignition::plugin::PluginPtr plugin;
 

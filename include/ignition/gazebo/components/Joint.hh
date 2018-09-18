@@ -14,21 +14,26 @@
  * limitations under the License.
  *
 */
-#ifndef IGNITION_GAZEBO_SYSTEMPLUGINPTR_HH_
-#define IGNITION_GAZEBO_SYSTEMPLUGINPTR_HH_
+#ifndef IGNITION_GAZEBO_COMPONENTS_JOINT_HH_
+#define IGNITION_GAZEBO_COMPONENTS_JOINT_HH_
 
-#include <ignition/plugin/SpecializedPluginPtr.hh>
-#include <ignition/gazebo/System.hh>
+#include <ignition/gazebo/config.hh>
+#include <ignition/gazebo/Export.hh>
 
 namespace ignition
 {
-  namespace gazebo
+namespace gazebo
+{
+namespace components
+{
+  // Inline bracket to help doxygen filtering.
+  inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
+  /// \brief This component identifies an entity as being a joint.
+  class IGNITION_GAZEBO_VISIBLE Joint
   {
-    using SystemPluginPtr = ignition::plugin::SpecializedPluginPtr<
-      System, ISystemPreUpdate, ISystemUpdate, ISystemPostUpdate>;
+  };
   }
 }
-
-
+}
+}
 #endif
-

@@ -54,6 +54,7 @@ find_package (Qt5
     QuickControls2
   REQUIRED)
 
+
 #--------------------------------------
 # Find gflags
 find_library(gflags_LIBRARIES NAMES gflags)
@@ -65,6 +66,11 @@ else()
   include_directories(${gflags_INCLUDE_DIRS})
   link_directories(${gflags_LIBRARY_DIRS})
 endif()
+
+#--------------------------------------
+# Find ignition-math
+set(IGN_MATH_VER 6)
+ign_find_package(ignition-math6 REQUIRED COMPONENTS eigen3)
 
 #============================================================================
 # Configure the build

@@ -25,14 +25,12 @@
 #include "ignition/gazebo/Entity.hh"
 #include "ignition/gazebo/EntityComponentManager.hh"
 #include "ignition/gazebo/System.hh"
+#include "ignition/gazebo/SystemManager.hh"
 #include "ignition/gazebo/Server.hh"
 #include "ignition/gazebo/Types.hh"
 #include "ignition/gazebo/test_config.hh"
 
-#include "systems/MockSystem.hh"
-
-#include "SystemManager.hh"
-
+#include "plugins/MockSystem.hh"
 
 using namespace ignition;
 using namespace std::chrono_literals;
@@ -222,7 +220,9 @@ TEST_P(ServerFixture, AddSystemWhileRunning)
   EXPECT_EQ(2u, *server.SystemCount());
 
   gazebo::SystemManager sm;
-  auto mockSystemPlugin = sm.LoadPlugin("libMockSystem.so", "ignition::gazebo::MockSystem", nullptr);
+  auto mockSystemPlugin = sm.LoadPlugin("libMockSystem.so",
+                                        "ignition::gazebo::MockSystem",
+                                        nullptr);
   ASSERT_TRUE(mockSystemPlugin.has_value());
 
   EXPECT_FALSE(*server.AddSystem(mockSystemPlugin.value()));
@@ -244,7 +244,9 @@ TEST_P(ServerFixture, AddSystemAfterLoad)
   EXPECT_FALSE(*server.Running());
 
   gazebo::SystemManager sm;
-  auto mockSystemPlugin = sm.LoadPlugin("libMockSystem.so", "ignition::gazebo::MockSystem", nullptr);
+  auto mockSystemPlugin = sm.LoadPlugin("libMockSystem.so",
+                                        "ignition::gazebo::MockSystem",
+                                        nullptr);
   ASSERT_TRUE(mockSystemPlugin.has_value());
 
   EXPECT_EQ(2u, *server.SystemCount());
@@ -265,7 +267,6 @@ TEST_P(ServerFixture, AddSystemAfterLoad)
   EXPECT_EQ(1u, mockSystem->updateCallCount);
   EXPECT_EQ(1u, mockSystem->postUpdateCallCount);
 }
-
 
 // Run multiple times. We want to make sure that static globals don't cause
 // problems.
