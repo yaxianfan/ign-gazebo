@@ -14,7 +14,6 @@
  * limitations under the License.
  *
 */
-
 #include "ignition/gazebo/systems/Null.hh"
 #include <ignition/plugin/RegisterMore.hh>
 
@@ -31,11 +30,23 @@ Null::~Null()
 {
 }
 
-//////////////////////////////////////////////////
-void Null::Init(std::vector<EntityQueryCallback> &/*_cbs*/)
+void Null::PreUpdate(const UpdateInfo &/*_info*/,
+                     EntityComponentManager &/*_ecm*/)
+{
+}
+
+void Null::Update(const UpdateInfo &/*_info*/,
+                  EntityComponentManager &/*_ecm*/)
+{
+}
+
+void Null::PostUpdate(const UpdateInfo &/*_info*/,
+                  const EntityComponentManager &/*_ecm*/)
 {
 }
 
 IGNITION_ADD_PLUGIN(ignition::gazebo::systems::Null,
-                    ignition::gazebo::System)
-
+                    ignition::gazebo::System,
+                    Null::ISystemPreUpdate,
+                    Null::ISystemUpdate,
+                    Null::ISystemPostUpdate)

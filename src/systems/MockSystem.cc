@@ -14,14 +14,14 @@
  * limitations under the License.
  *
 */
+#include "MockSystem.hh"
 
-#include <gtest/gtest.h>
+#include <ignition/plugin/Register.hh>
 
-#include "ignition/gazebo/System.hh"
+IGNITION_ADD_PLUGIN(
+    ignition::gazebo::MockSystem,
+    ignition::gazebo::System,
+    ignition::gazebo::MockSystem::ISystemPreUpdate,
+    ignition::gazebo::MockSystem::ISystemUpdate,
+    ignition::gazebo::MockSystem::ISystemPostUpdate)
 
-using namespace ignition;
-
-/////////////////////////////////////////////////
-TEST(System, Constructor)
-{
-}

@@ -14,14 +14,21 @@
  * limitations under the License.
  *
 */
+#ifndef IGNITION_GAZEBO_SYSTEMPLUGINPTR_HH_
+#define IGNITION_GAZEBO_SYSTEMPLUGINPTR_HH_
 
-#include <gtest/gtest.h>
+#include <ignition/plugin/SpecializedPluginPtr.hh>
+#include <ignition/gazebo/System.hh>
 
-#include "ignition/gazebo/System.hh"
-
-using namespace ignition;
-
-/////////////////////////////////////////////////
-TEST(System, Constructor)
+namespace ignition
 {
+  namespace gazebo
+  {
+    using SystemPluginPtr = ignition::plugin::SpecializedPluginPtr<
+      System, ISystemPreUpdate, ISystemUpdate, ISystemPostUpdate>;
+  }
 }
+
+
+#endif
+

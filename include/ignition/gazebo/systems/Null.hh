@@ -17,7 +17,6 @@
 #ifndef IGNITION_GAZEBO_NULL_SYSTEM_HH_
 #define IGNITION_GAZEBO_NULL_SYSTEM_HH_
 
-#include <vector>
 #include <ignition/gazebo/config.hh>
 #include <ignition/gazebo/Export.hh>
 #include <ignition/gazebo/System.hh>
@@ -32,7 +31,11 @@ namespace systems
   inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
   /// \class Null Null.hh ignition/gazebo/systems/Null.hh
   /// \brief Minimal system implementation
-  class IGNITION_GAZEBO_VISIBLE Null: public System
+  class IGNITION_GAZEBO_VISIBLE Null:
+    public System,
+    public ISystemPreUpdate,
+    public ISystemUpdate,
+    public ISystemPostUpdate
   {
     /// \brief Constructor
     public: Null();
@@ -40,8 +43,14 @@ namespace systems
     /// \brief Destructor
     public: virtual ~Null();
 
-    // Documentation inherited
-    public: void Init(std::vector<EntityQueryCallback> &_cbs) override final;
+    public: void PreUpdate(const UpdateInfo &_info,
+                           EntityComponentManager &_ecm) override;
+
+    public: void Update(const UpdateInfo &_info,
+                        EntityComponentManager &_ecm) override;
+
+    public: void PostUpdate(const UpdateInfo &_info,
+                            const EntityComponentManager &_ecm) override;
   };
   }
 }

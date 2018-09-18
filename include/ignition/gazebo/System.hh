@@ -17,9 +17,8 @@
 #ifndef IGNITION_GAZEBO_SYSTEM_HH_
 #define IGNITION_GAZEBO_SYSTEM_HH_
 
-#include <vector>
-
 #include <ignition/gazebo/config.hh>
+#include <ignition/gazebo/EntityComponentManager.hh>
 #include <ignition/gazebo/Export.hh>
 #include <ignition/gazebo/Types.hh>
 
@@ -35,6 +34,22 @@ namespace ignition
     /// A System operates on Entities that have certain Components. A System
     /// will only operate on an Entity if it has all of the required
     /// Components.
+    ///
+    /// Systems are executed in three phases:
+    ///  * PreUpdate
+    ///    * Has read-write access to world entities and components
+    ///    * Executed with simulation time at (t0)
+    ///    * Can be used to modify state before physics runs, for example for
+    ///      applying control signals or performing network syncronization.
+    ///  * Update
+    ///    * Has read-write access to world entities and components
+    ///    * Responsible for propagating time from (t0) to (t0 + dt)
+    ///    * Used for physics simulation step
+    ///  * PostUpdate
+    ///    * Has read-only access to world entities and components
+    ///    * Executed with simulation time at (t0 + dt)
+    ///    * Used to read out results at the end of a simulation step to be used
+    ///      for sensor or controller updates.
     class IGNITION_GAZEBO_VISIBLE System
     {
       /// \brief Constructor
@@ -42,10 +57,27 @@ namespace ignition
 
       /// \brief Destructor
       public: virtual ~System();
+    };
 
-      /// \brief Initialize the system.
-      /// \param[out] _cbs A set of callbacks.
-      public: virtual void Init(std::vector<EntityQueryCallback> &_cbs) = 0;
+    /// /class ISystemPreUpdate ISystem.hh ignition/gazebo/System.hh
+    /// \brief Interface for a system that uses the PreUpdate phase
+    class IGNITION_GAZEBO_VISIBLE ISystemPreUpdate {
+      public: virtual void PreUpdate(const UpdateInfo &_info,
+                                     EntityComponentManager &_ecm) = 0;
+    };
+
+    /// /class ISystemUpdate ISystem.hh ignition/gazebo/System.hh
+    /// \brief Interface for a system that uses the Update phase
+    class IGNITION_GAZEBO_VISIBLE ISystemUpdate {
+      public: virtual void Update(const UpdateInfo &_info,
+                                  EntityComponentManager &_ecm) = 0;
+    };
+
+    /// /class ISystemPostUpdate ISystem.hh ignition/gazebo/System.hh
+    /// \brief Interface for a system that uses the PostUpdate phase
+    class IGNITION_GAZEBO_VISIBLE ISystemPostUpdate{
+      public: virtual void PostUpdate(const UpdateInfo &_info,
+                                      const EntityComponentManager &_ecm) = 0;
     };
     }
   }

@@ -22,11 +22,17 @@
 #include <ignition/common/Util.hh>
 #include <ignition/transport/Node.hh>
 
+#include "ignition/gazebo/Entity.hh"
 #include "ignition/gazebo/EntityComponentManager.hh"
 #include "ignition/gazebo/System.hh"
 #include "ignition/gazebo/Server.hh"
 #include "ignition/gazebo/Types.hh"
 #include "ignition/gazebo/test_config.hh"
+
+#include "systems/MockSystem.hh"
+
+#include "SystemManager.hh"
+
 
 using namespace ignition;
 using namespace std::chrono_literals;
@@ -40,29 +46,6 @@ class ServerFixture : public ::testing::TestWithParam<int>
            (std::string(PROJECT_BINARY_PATH) + "/lib").c_str(), 1);
   }
 };
-
-class MockSystem : public gazebo::System
-{
-  // Keep the number of calls to Init
-  public: size_t initCallCount = 0;
-  public: size_t updateCallCount = 0;
-  public:
-    void Init(std::vector<gazebo::EntityQueryCallback> &_cbs) override
-    {
-      ++this->initCallCount;
-      _cbs.push_back(
-          std::bind(&MockSystem::OnUpdate, this,
-            std::placeholders::_1, std::placeholders::_2));
-    }
-
-  public:
-    void OnUpdate(const gazebo::UpdateInfo /*_info*/,
-                  gazebo::EntityComponentManager & /*_manager*/)
-    {
-      ++this->updateCallCount;
-    }
-};
-
 
 /////////////////////////////////////////////////
 TEST_P(ServerFixture, DefaultServerConfig)
@@ -237,8 +220,13 @@ TEST_P(ServerFixture, AddSystemWhileRunning)
   // Run the server to test whether we can add system while system is running
   server.Run();
   EXPECT_EQ(2u, *server.SystemCount());
-  auto mockSystem = std::make_shared<MockSystem>();
-  EXPECT_FALSE(*server.AddSystem(mockSystem));
+
+  gazebo::SystemManager sm;
+  auto mockSystemPlugin = sm.LoadPlugin("libMockSystem.so",
+      "ignition::gazebo::MockSystem", nullptr);
+  ASSERT_TRUE(mockSystemPlugin.has_value());
+
+  EXPECT_FALSE(*server.AddSystem(mockSystemPlugin.value()));
   EXPECT_EQ(2u, *server.SystemCount());
 
   // Stop the server
@@ -256,20 +244,30 @@ TEST_P(ServerFixture, AddSystemAfterLoad)
   gazebo::Server server(serverConfig);
   EXPECT_FALSE(*server.Running());
 
-  auto mockSystem = std::make_shared<MockSystem>();
-  EXPECT_EQ(0u, mockSystem->initCallCount);
+  gazebo::SystemManager sm;
+  auto mockSystemPlugin = sm.LoadPlugin("libMockSystem.so",
+      "ignition::gazebo::MockSystem", nullptr);
+  ASSERT_TRUE(mockSystemPlugin.has_value());
 
   EXPECT_EQ(2u, *server.SystemCount());
-  EXPECT_TRUE(*server.AddSystem(mockSystem));
+  EXPECT_TRUE(*server.AddSystem(mockSystemPlugin.value()));
   EXPECT_EQ(3u, *server.SystemCount());
-  // We expect to be initialized when added to server
-  EXPECT_EQ(1u, mockSystem->initCallCount);
+
+  auto system = mockSystemPlugin.value()->QueryInterface<gazebo::System>();
+  EXPECT_NE(system, nullptr);
+  gazebo::MockSystem* mockSystem = dynamic_cast<gazebo::MockSystem*>(system);
+  EXPECT_NE(mockSystem, nullptr);
 
   server.SetUpdatePeriod(1us);
+  EXPECT_EQ(0u, mockSystem->preUpdateCallCount);
   EXPECT_EQ(0u, mockSystem->updateCallCount);
+  EXPECT_EQ(0u, mockSystem->postUpdateCallCount);
   server.Run(true, 1);
+  EXPECT_EQ(1u, mockSystem->preUpdateCallCount);
   EXPECT_EQ(1u, mockSystem->updateCallCount);
+  EXPECT_EQ(1u, mockSystem->postUpdateCallCount);
 }
+
 
 // Run multiple times. We want to make sure that static globals don't cause
 // problems.

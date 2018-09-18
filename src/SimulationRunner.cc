@@ -34,17 +34,15 @@
 #include "ignition/gazebo/components/Pose.hh"
 #include "ignition/gazebo/components/Visual.hh"
 #include "ignition/gazebo/components/World.hh"
-#include "ignition/gazebo/SystemManager.hh"
 
 using namespace ignition;
 using namespace gazebo;
 
 using StringSet = std::unordered_set<std::string>;
-using SystemPtr = SimulationRunner::SystemPtr;
 
 //////////////////////////////////////////////////
 SimulationRunner::SimulationRunner(const sdf::World *_world,
-                                   const std::vector<SystemPtr> &_systems)
+                                   const std::vector<SystemPluginPtr> &_systems)
 {
   // Keep world name
   this->worldName = _world->Name();
@@ -52,7 +50,7 @@ SimulationRunner::SimulationRunner(const sdf::World *_world,
   // Store systems
   for (auto &system : _systems)
   {
-    this->systems.push_back(SystemInternal(system));
+    this->AddSystem(system);
   }
 
   // Get the first physics profile
@@ -113,21 +111,6 @@ SimulationRunner::SimulationRunner(const sdf::World *_world,
 //////////////////////////////////////////////////
 SimulationRunner::~SimulationRunner()
 {
-}
-
-/////////////////////////////////////////////////
-void SimulationRunner::InitSystems()
-{
-  // Initialize all the systems in parallel.
-  for (SystemInternal &system : this->systems)
-  {
-    this->workerPool.AddWork([&system, this] ()
-    {
-      system.system->Init(system.updates);
-    });
-  }
-
-  this->workerPool.WaitForResults();
 }
 
 /////////////////////////////////////////////////
@@ -223,11 +206,19 @@ void SimulationRunner::PublishStats()
 }
 
 /////////////////////////////////////////////////
-void SimulationRunner::AddSystem(const SystemPtr &_system)
+void SimulationRunner::AddSystem(const SystemPluginPtr &_system)
 {
   this->systems.push_back(SystemInternal(_system));
-  auto& systemInternal = this->systems.back();
-  systemInternal.system->Init(systemInternal.updates);
+
+  const auto &system = this->systems.back();
+  if (system.preupdate)
+    this->systemsPreupdate.push_back(system.preupdate);
+
+  if (system.update)
+    this->systemsUpdate.push_back(system.update);
+
+  if (system.postupdate)
+    this->systemsPostupdate.push_back(system.postupdate);
 }
 
 /////////////////////////////////////////////////
@@ -239,14 +230,14 @@ void SimulationRunner::UpdateSystems()
   // WorkerPool.cc). We could turn on parallel updates in the future, and/or
   // turn it on if there are sufficient systems. More testing is required.
 
-  // Update all the systems
-  for (SystemInternal &system : this->systems)
-  {
-    for (EntityQueryCallback &cb : system.updates)
-    {
-      cb(this->currentInfo, this->entityCompMgr);
-    }
-  }
+  for (auto& system : this->systemsPreupdate)
+    system->PreUpdate(this->currentInfo, this->entityCompMgr);
+
+  for (auto& system : this->systemsUpdate)
+    system->Update(this->currentInfo, this->entityCompMgr);
+
+  for (auto& system : this->systemsPostupdate)
+    system->PostUpdate(this->currentInfo, this->entityCompMgr);
 }
 
 /////////////////////////////////////////////////
@@ -266,7 +257,6 @@ bool SimulationRunner::Run(const uint64_t _iterations)
 
   // Keep track of wall clock time
   this->realTimeWatch.Start();
-
   // Variables for time keeping.
   std::chrono::steady_clock::time_point startTime;
   std::chrono::steady_clock::duration sleepTime;
