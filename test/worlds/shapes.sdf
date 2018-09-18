@@ -1,0 +1,109 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="default">
+    <physics name="1ms" type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+    <plugin
+      filename="libignition-gazebo-systems.so"
+      name="ignition::gazebo::systems::v0::Physics">
+    </plugin>
+    <plugin
+      filename="libignition-gazebo-systems.so"
+      name="ignition::gazebo::systems::v0::SceneBroadcaster">
+    </plugin>
+
+    <model name="box">
+      <pose>1 2 3 0 0 1</pose>
+      <link name="box_link">
+        <pose>0.1 0.1 0.1 0 0 0</pose>
+        <collision name="box_collision">
+          <pose>0.11 0.11 0.11 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>3 4 5</size>
+            </box>
+          </geometry>
+        </collision>
+
+        <visual name="box_visual">
+          <pose>0.12 0.12 0.12 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>1 2 3</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 0 0 1</ambient>
+            <diffuse>1 0 0 1</diffuse>
+            <specular>1 0 0 1</specular>
+            <emissive>1 0 0 1</emissive>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="cylinder">
+      <pose>-1 -2 -3 0 0 1</pose>
+      <link name="cylinder_link">
+        <pose>0.2 0.2 0.2 0 0 0</pose>
+        <collision name="cylinder_collision">
+          <pose>0.21 0.21 0.21 0 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.2</radius>
+              <length>0.1</length>
+            </cylinder>
+          </geometry>
+        </collision>
+
+        <visual name="cylinder_visual">
+          <pose>0.22 0.22 0.22 0 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>2.1</radius>
+              <length>10.2</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0 1 0 1</ambient>
+            <diffuse>0 1 0 1</diffuse>
+            <specular>0 1 0 1</specular>
+            <emissive>0 1 0 1</emissive>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="sphere">
+      <pose>0 0 0 0 0 1</pose>
+      <link name="sphere_link">
+        <pose>0.3 0.3 0.3 0 0 0</pose>
+        <collision name="sphere_collision">
+          <pose>0.31 0.31 0.31 0 0 0</pose>
+          <geometry>
+            <sphere>
+              <radius>23.4</radius>
+            </sphere>
+          </geometry>
+        </collision>
+
+        <visual name="sphere_visual">
+          <pose>0.32 0.32 0.32 0 0 0</pose>
+          <geometry>
+            <sphere>
+              <radius>1.2</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <ambient>0 0 1 1</ambient>
+            <diffuse>0 0 1 1</diffuse>
+            <specular>0 0 1 1</specular>
+            <emissive>0 0 1 1</emissive>
+          </material>
+        </visual>
+      </link>
+    </model>
+  </world>
+</sdf>
