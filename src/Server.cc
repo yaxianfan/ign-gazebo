@@ -64,8 +64,13 @@ Server::~Server()
 }
 
 /////////////////////////////////////////////////
-bool Server::Run(const bool _blocking, const uint64_t _iterations)
+bool Server::Run(const bool _blocking, const uint64_t _iterations,
+    const bool _paused)
 {
+  // Set the initial pause state of each simulation runner.
+  for (std::unique_ptr<SimulationRunner> &runner : this->dataPtr->simRunners)
+    runner->SetPaused(_paused);
+
   // Check the current state, and return early if preconditions are not met.
   {
     std::lock_guard<std::mutex> lock(this->dataPtr->runMutex);
@@ -90,6 +95,7 @@ bool Server::Run(const bool _blocking, const uint64_t _iterations)
   std::unique_lock<std::mutex> lock(this->dataPtr->runMutex);
   if (this->dataPtr->runThread.get_id() == std::thread::id())
   {
+    // std::cout << "Create Run thread\n";
     std::condition_variable cond;
     this->dataPtr->runThread =
       std::thread(&ServerPrivate::Run, this->dataPtr.get(), _iterations, &cond);
@@ -115,10 +121,37 @@ void Server::SetUpdatePeriod(
 }
 
 //////////////////////////////////////////////////
+bool Server::Running() const
+{
+  return this->dataPtr->running;
+}
+
+//////////////////////////////////////////////////
 std::optional<bool> Server::Running(const unsigned int _worldIndex) const
 {
   if (_worldIndex < this->dataPtr->simRunners.size())
     return this->dataPtr->simRunners[_worldIndex]->Running();
+  return std::nullopt;
+}
+
+//////////////////////////////////////////////////
+bool Server::SetPaused(const bool _paused,
+    const unsigned int _worldIndex) const
+{
+  if (_worldIndex < this->dataPtr->simRunners.size())
+  {
+    this->dataPtr->simRunners[_worldIndex]->SetPaused(_paused);
+    return true;
+  }
+
+  return false;
+}
+
+//////////////////////////////////////////////////
+std::optional<bool> Server::Paused(const unsigned int _worldIndex) const
+{
+  if (_worldIndex < this->dataPtr->simRunners.size())
+    return this->dataPtr->simRunners[_worldIndex]->Paused();
   return std::nullopt;
 }
 
