@@ -159,6 +159,21 @@ namespace ignition
       /// \return Reference to the entity component manager.
       public: const EntityComponentManager &EntityCompMgr() const;
 
+      /// \brief Return true if an entity with the provided name exists.
+      /// \param[in] _name Name of the entity.
+      /// \return True if the entity exists in the world.
+      public: bool HasEntity(const std::string &_name) const;
+
+      /// \brief Return true if an entity exists with the
+      /// provided name and the entity was queued for deletion. Note that
+      /// the entity is not erased immediately. Entity deletion happens at
+      /// the end of the next (or current depending on when this function is
+      /// called) simulation step.
+      /// \param[in] _name Name of the entity to delete.
+      /// \return True if the entity exists in the world and it was queued
+      /// for deletion.
+      public: bool RequestEraseEntity(const std::string &_name);
+
       /// \brief Get the current info object.
       /// \return Current info.
       public: const UpdateInfo &CurrentInfo() const;

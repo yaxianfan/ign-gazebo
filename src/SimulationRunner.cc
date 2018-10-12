@@ -322,6 +322,9 @@ bool SimulationRunner::Run(const uint64_t _iterations)
 
     // Process world control messages.
     this->ProcessMessages();
+
+    // Process entity erasures.
+    this->entityCompMgr.ProcessEraseEntityRequests();
   }
 
   this->running = false;
@@ -574,4 +577,41 @@ const ignition::math::clock::duration &SimulationRunner::StepSize() const
 void SimulationRunner::SetStepSize(const ignition::math::clock::duration &_step)
 {
   this->stepSize = _step;
+}
+
+/////////////////////////////////////////////////
+bool SimulationRunner::HasEntity(const std::string &_name) const
+{
+  bool result = false;
+  this->entityCompMgr.Each<components::Name>([&](const EntityId,
+        const components::Name *_entityName)->bool
+    {
+      if (_entityName->Data() == _name)
+      {
+        result = true;
+        return false;
+      }
+      return true;
+    });
+
+  return result;
+}
+
+/////////////////////////////////////////////////
+bool SimulationRunner::RequestEraseEntity(const std::string &_name)
+{
+  bool result = false;
+  this->entityCompMgr.Each<components::Name>([&](const EntityId _id,
+        const components::Name *_entityName)->bool
+    {
+      if (_entityName->Data() == _name)
+      {
+        this->entityCompMgr.RequestEraseEntity(_id);
+        result = true;
+        return false;
+      }
+      return true;
+    });
+
+  return result;
 }

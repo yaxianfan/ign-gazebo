@@ -310,13 +310,15 @@ namespace ignition
       /// \return Entity count.
       public: size_t EntityCount() const;
 
-      /// \brief Delete an existing Entity.
-      /// \returns True if the Entity existed and was deleted.
-      /// \todo(nkoenig) Implement this function
-      // public: bool EraseEntity(const EntityId _id);
+      /// \brief Request an entity deletion. This will insert the request
+      /// into a queue. The queue is processed toward the end of a simulation
+      /// update step.
+      public: void RequestEraseEntity(const EntityId _id);
 
-      /// \brief Delete all entities.
-      public: void EraseEntities();
+      /// \brief Request to erase all entities. This will insert the request
+      /// into a queue. The queue is processed toward the end of a simulation
+      /// update step.
+      public: void RequestEraseEntities();
 
       /// \brief Get whether an Entity exists.
       /// \param[in] _id Entity id to confirm.
@@ -482,11 +484,15 @@ namespace ignition
       /// as the components.
       /// \param[in] _f Callback function to be called for each matching entity.
       /// The function parameter are all the desired component types, in the
-      /// order they're listed on the template.
+      /// order they're listed on the template. The callback function can
+      /// return false to stop subsequent calls to the callback, otherwise
+      /// a true value should be returned.
       /// \tparam ComponentTypeTs All the desired component types.
+      /// \warning This function should not be called outside of System's
+      /// PreUpdate, Update, or PostUpdate callbacks.
       public: template<typename ...ComponentTypeTs>
               void EachNoCache(typename identity<std::function<
-                  void(const EntityId &_entity,
+                  bool(const EntityId &_entity,
                        const ComponentTypeTs *...)>>::type _f) const
       {
         for (const Entity &entity : this->Entities())
@@ -496,7 +502,11 @@ namespace ignition
 
           if (this->EntityMatches(entity.Id(), types))
           {
-            _f(entity.Id(), this->Component<ComponentTypeTs>(entity.Id())...);
+            if (!_f(entity.Id(),
+                    this->Component<ComponentTypeTs>(entity.Id())...))
+            {
+              break;
+            }
           }
         }
       }
@@ -507,11 +517,15 @@ namespace ignition
       /// as the mutable components.
       /// \param[in] _f Callback function to be called for each matching entity.
       /// The function parameter are all the desired component types, in the
-      /// order they're listed on the template.
+      /// order they're listed on the template. The callback function can
+      /// return false to stop subsequent calls to the callback, otherwise
+      /// a true value should be returned.
       /// \tparam ComponentTypeTs All the desired mutable component types.
+      /// \warning This function should not be called outside of System's
+      /// PreUpdate, Update, or PostUpdate callbacks.
       public: template<typename ...ComponentTypeTs>
               void EachNoCache(typename identity<std::function<
-                  void(const EntityId &_entity,
+                  bool(const EntityId &_entity,
                        ComponentTypeTs *...)>>::type _f)
       {
         for (const Entity &entity : this->Entities())
@@ -521,8 +535,11 @@ namespace ignition
 
           if (this->EntityMatches(entity.Id(), types))
           {
-            _f(entity.Id(),
-               this->Component<ComponentTypeTs>(entity.Id())...);
+            if (!_f(entity.Id(),
+                    this->Component<ComponentTypeTs>(entity.Id())...))
+            {
+              break;
+            }
           }
         }
       }
@@ -531,11 +548,15 @@ namespace ignition
       /// as the components.
       /// \param[in] _f Callback function to be called for each matching entity.
       /// The function parameter are all the desired component types, in the
-      /// order they're listed on the template.
+      /// order they're listed on the template. The callback function can
+      /// return false to stop subsequent calls to the callback, otherwise
+      /// a true value should be returned.
       /// \tparam ComponentTypeTs All the desired component types.
+      /// \warning This function should not be called outside of System's
+      /// PreUpdate, Update, or PostUpdate callbacks.
       public: template<typename ...ComponentTypeTs>
               void Each(typename identity<std::function<
-                  void(const EntityId &_entity,
+                  bool(const EntityId &_entity,
                        const ComponentTypeTs *...)>>::type _f) const
       {
         // Get the view. This will create a new view if one does not already
@@ -546,7 +567,10 @@ namespace ignition
         // function.
         for (const EntityId entity : view.entities)
         {
-          _f(entity, view.Component<ComponentTypeTs>(entity)...);
+          if (!_f(entity, view.Component<ComponentTypeTs>(entity)...))
+          {
+            break;
+          }
         }
       }
 
@@ -554,11 +578,15 @@ namespace ignition
       /// as the mutable components.
       /// \param[in] _f Callback function to be called for each matching entity.
       /// The function parameter are all the desired component types, in the
-      /// order they're listed on the template.
+      /// order they're listed on the template. The callback function can
+      /// return false to stop subsequent calls to the callback, otherwise
+      /// a true value should be returned.
       /// \tparam ComponentTypeTs All the desired mutable component types.
+      /// \warning This function should not be called outside of System's
+      /// PreUpdate, Update, or PostUpdate callbacks.
       public: template<typename ...ComponentTypeTs>
               void Each(typename identity<std::function<
-                  void(const EntityId &_entity,
+                  bool(const EntityId &_entity,
                        ComponentTypeTs *...)>>::type _f)
       {
         // Get the view. This will create a new view if one does not already
@@ -569,9 +597,21 @@ namespace ignition
         // function.
         for (const EntityId entity : view.entities)
         {
-          _f(entity, view.Component<ComponentTypeTs>(entity)...);
+          if (!_f(entity, view.Component<ComponentTypeTs>(entity)...))
+          {
+            break;
+          }
         }
       }
+
+      /// \brief Process all entity erase requests. This will remove
+      /// entities and their components. This function is protected to
+      /// facilitate testing.
+      protected: void ProcessEraseEntityRequests();
+
+      /// \brief Delete an existing Entity.
+      /// \returns True if the Entity existed and was deleted.
+      private: bool EraseEntity(const EntityId _id);
 
       /// \brief The first component instance of the specified type.
       /// \return First component instance of the specified type, or nullptr
@@ -723,6 +763,11 @@ namespace ignition
 
       /// \brief Private data pointer.
       private: std::unique_ptr<EntityComponentManagerPrivate> dataPtr;
+
+      /// Make simulation runner a friend so that it can trigger entity
+      /// erasures. This should be safe since SimulationRunner is internal
+      /// to Gazebo.
+      friend class SimulationRunner;
     };
     }
   }
