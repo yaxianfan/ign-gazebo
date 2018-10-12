@@ -568,7 +568,10 @@ TEST_P(EntityComponentManagerFixture, ViewsRemoveComponents)
     else
       EXPECT_EQ(1, count);
 
-    manager.RemoveComponent(eDouble, compToRemove);
+    if (i == 0)
+    {
+      EXPECT_TRUE(manager.RemoveComponent(eIntDouble, compToRemove));
+    }
   }
 }
 
@@ -715,6 +718,7 @@ TEST_P(EntityComponentManagerFixture, ViewsEraseEntities)
     manager.EraseEntities();
   }
 }
+
 // Run multiple times. We want to make sure that static globals don't cause
 // problems.
 INSTANTIATE_TEST_CASE_P(EntityComponentManagerRepeat,
