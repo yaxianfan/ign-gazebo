@@ -48,6 +48,8 @@ namespace systems
     /// \brief Destructor
     public: virtual ~SceneBroadcaster();
 
+    public: void Init(const sdf::ElementPtr &_sdf) override;
+
     public: void PostUpdate(const UpdateInfo &_info,
                 const EntityComponentManager &_ecm) override final;
 

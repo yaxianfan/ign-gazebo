@@ -79,6 +79,8 @@ bool ServerPrivate::Run(const uint64_t _iterations,
 
   bool result = true;
 
+  ignmsg << "ServerPrivate::Run" << std::endl;
+
   // Minor performance tweak. In many situations there will only be one
   // simulation runner, and we can avoid using the thread pool.
   if (this->simRunners.size() == 1)
@@ -122,6 +124,8 @@ void ServerPrivate::CreateEntities(const sdf::Root &_root)
         auto system = this->systemManager.LoadPlugin(pluginElem);
         if (system)
         {
+          auto system_iface = system.value()->QueryInterface<System>();
+          system_iface->Init(pluginElem);
           systems.push_back(system.value());
         }
         pluginElem = pluginElem->GetNextElement("plugin");

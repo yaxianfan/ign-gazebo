@@ -59,7 +59,8 @@ namespace ignition
                 system(systemPlugin->QueryInterface<System>()),
                 preupdate(systemPlugin->QueryInterface<ISystemPreUpdate>()),
                 update(systemPlugin->QueryInterface<ISystemUpdate>()),
-                postupdate(systemPlugin->QueryInterface<ISystemPostUpdate>())
+                postupdate(systemPlugin->QueryInterface<ISystemPostUpdate>()),
+                runnable(systemPlugin->QueryInterface<ISystemRunnable>())
       {
       }
 
@@ -81,6 +82,10 @@ namespace ignition
       /// \brief Access this system via the ISystemPostUpdate interface
       /// Will be nullptr if the System doesn't implement this interface.
       public: ISystemPostUpdate *postupdate = nullptr;
+
+      /// \brief Access this system via the ISystemRunnable interface
+      /// Will be nullptr if the System doesn't implement this interface.
+      public: ISystemRunnable *runnable = nullptr;
 
       /// \brief Vector of queries and callbacks
       public: std::vector<EntityQueryCallback> updates;
@@ -111,6 +116,12 @@ namespace ignition
 
       /// \brief Update all the systems
       public: void UpdateSystems();
+
+      /// \brief Run all the systems that implement Runnable interface.
+      public: void RunSystems();
+
+      /// \brief Stop all the systems that implement Runnable interface.
+      public: void StopSystems();
 
       /// \brief Publish current world statistics.
       public: void PublishStats();
@@ -206,6 +217,9 @@ namespace ignition
 
       /// \brief Systems implementing PostUpdate
       private: std::vector<ISystemPostUpdate*> systemsPostupdate;
+
+      /// \brief Systems implementing Runnable
+      private: std::vector<ISystemRunnable*> systemsRunnable;
 
       /// \brief Manager of all components.
       private: EntityComponentManager entityCompMgr;

@@ -151,6 +151,11 @@ SceneBroadcaster::~SceneBroadcaster()
 }
 
 //////////////////////////////////////////////////
+void SceneBroadcaster::Init(const sdf::ElementPtr &/*_sdf*/)
+{
+}
+
+//////////////////////////////////////////////////
 void SceneBroadcaster::PostUpdate(const UpdateInfo &/*_info*/,
     const EntityComponentManager &_manager)
 {

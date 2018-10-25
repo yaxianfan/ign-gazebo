@@ -107,6 +107,8 @@ SimulationRunner::SimulationRunner(const sdf::World *_world,
   this->node.Advertise("/world/" + this->worldName + "/control",
         &SimulationRunner::OnWorldControl, this);
 
+  this->RunSystems();
+
   ignmsg << "World [" << _world->Name() << "] initialized with ["
          << physics->Name() << "] physics profile." << std::endl;
 }
@@ -219,6 +221,25 @@ void SimulationRunner::AddSystem(const SystemPluginPtr &_system)
 
   if (system.postupdate)
     this->systemsPostupdate.push_back(system.postupdate);
+
+  if (system.runnable)
+    this->systemsRunnable.push_back(system.runnable);
+}
+
+/////////////////////////////////////////////////
+void SimulationRunner::RunSystems()
+{
+  for(auto& system : this->systemsRunnable) {
+    system->Run();
+  }
+}
+
+/////////////////////////////////////////////////
+void SimulationRunner::StopSystems()
+{
+  for(auto& system: this->systemsRunnable) {
+    system->Stop();
+  }
 }
 
 /////////////////////////////////////////////////
@@ -244,6 +265,7 @@ void SimulationRunner::UpdateSystems()
 void SimulationRunner::Stop()
 {
   this->running = false;
+  this->StopSystems();
 }
 
 /////////////////////////////////////////////////
@@ -255,9 +277,11 @@ bool SimulationRunner::Run(const uint64_t _iterations)
   // \todo(nkoenig) We should implement the two-phase update detailed
   // in the design.
 
+  ignmsg << "SimulationRunner::Run" << std::endl;
+
   // Keep track of wall clock time. Only start the realTimeWatch if this
   // runner is not paused.
-  if (!this->currentInfo.paused)
+  if (!this->currentInfo.paused) {
     this->realTimeWatch.Start();
 
   // Variables for time keeping.
@@ -265,7 +289,7 @@ bool SimulationRunner::Run(const uint64_t _iterations)
   std::chrono::steady_clock::duration sleepTime;
   std::chrono::steady_clock::duration actualSleep;
 
-  this->running = true;
+  this->running = this->currentInfo.paused;
 
   // Execute all the systems until we are told to stop, or the number of
   // iterations is reached.
@@ -273,6 +297,7 @@ bool SimulationRunner::Run(const uint64_t _iterations)
        this->running && (_iterations == 0 ||
          this->currentInfo.iterations < _iterations + startingIterations);)
   {
+    ignmsg << "SimulationRunner::Run " << this->currentInfo.iterations << std::endl;
     // Compute the time to sleep in order to match, as closely as possible,
     // the update period.
     sleepTime = std::max(0ns, this->prevUpdateRealTime +

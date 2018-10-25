@@ -25,7 +25,7 @@ namespace ignition
   namespace gazebo
   {
     using SystemPluginPtr = ignition::plugin::SpecializedPluginPtr<
-      System, ISystemPreUpdate, ISystemUpdate, ISystemPostUpdate>;
+      System, ISystemRunnable, ISystemPreUpdate, ISystemUpdate, ISystemPostUpdate>;
   }
 }
 

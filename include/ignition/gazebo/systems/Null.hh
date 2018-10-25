@@ -43,6 +43,8 @@ namespace systems
     /// \brief Destructor
     public: virtual ~Null();
 
+    public: void Init(const sdf::ElementPtr &_sdf) override;
+
     public: void PreUpdate(const UpdateInfo &_info,
                            EntityComponentManager &_ecm) override;
 

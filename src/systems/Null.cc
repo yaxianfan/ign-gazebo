@@ -30,6 +30,10 @@ Null::~Null()
 {
 }
 
+void Null::Init(const sdf::ElementPtr &/*_sdf*/)
+{
+}
+
 void Null::PreUpdate(const UpdateInfo &/*_info*/,
                      EntityComponentManager &/*_ecm*/)
 {

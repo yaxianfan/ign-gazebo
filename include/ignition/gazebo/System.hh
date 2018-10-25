@@ -22,6 +22,8 @@
 #include <ignition/gazebo/Export.hh>
 #include <ignition/gazebo/Types.hh>
 
+#include <sdf/Element.hh>
+
 namespace ignition
 {
   namespace gazebo
@@ -57,6 +59,17 @@ namespace ignition
 
       /// \brief Destructor
       public: virtual ~System();
+
+      /// \brief Initialize system with configuration information.
+      public: virtual void Init(const sdf::ElementPtr &_sdf);
+    };
+
+    /// /class ISystemRunnable ISystem.hh ignition/gazebo/System.hh
+    /// \brief Interface for a system that uses background threads/tasks
+    class IGNITION_GAZEBO_VISIBLE ISystemRunnable {
+      public: virtual void Run() = 0;
+      public: virtual void Stop() = 0;
+      public: virtual bool Running() = 0;
     };
 
     /// /class ISystemPreUpdate ISystem.hh ignition/gazebo/System.hh
