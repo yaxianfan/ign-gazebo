@@ -9,10 +9,12 @@ ign_find_package(ignition-plugin1 REQUIRED COMPONENTS register)
 set(IGN_PLUGIN_VER ${ignition-plugin1_VERSION_MAJOR})
 
 ign_find_package(ignition-gazebo REQUIRED)
+ign_find_package(sdformat8 REQUIRED)
 
 add_library(SampleSystem SHARED SampleSystem.cc SampleSystem2.cc)
+target_include_directories(SampleSystem PRIVATE ${SDFormat_INCLUDE_DIRS})
 set_property(TARGET SampleSystem PROPERTY CXX_STANDARD 17)
 target_link_libraries(SampleSystem
   PRIVATE ignition-plugin${IGN_PLUGIN_VER}::ignition-plugin${IGN_PLUGIN_VER}
-  PRIVATE ignition-gazebo::ignition-gazebo)
+  PRIVATE ignition-gazebo::ignition-gazebo ${SDFormat_LIBRARIES})
 #! [build]
