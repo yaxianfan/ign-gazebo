@@ -9,22 +9,18 @@
 
 using namespace ignition::gazebo::systems;
 
-struct IGNITION_GAZEBO_VERSION_NAMESPACE::NetworkSecondaryPrivate {
-  std::shared_ptr<ignition::transport::Node> node;
-  bool is_registered {false};
-  common::Uuid uuid;
-};
-
+/////////////////////////////////////////////////
 NetworkSecondary::NetworkSecondary():
-  dataPtr(std::make_unique<NetworkSecondaryPrivate>())
+  node(std::make_shared<ignition::transport::Node>())
 {
-  dataPtr->node = std::make_shared<ignition::transport::Node>();
 }
 
+/////////////////////////////////////////////////
 NetworkSecondary::~NetworkSecondary()
 {
 }
 
+/////////////////////////////////////////////////
 void NetworkSecondary::Init(const sdf::ElementPtr &_sdf)
 {
   (void)_sdf;
@@ -32,20 +28,21 @@ void NetworkSecondary::Init(const sdf::ElementPtr &_sdf)
   RegisterWithPrimary();
 }
 
+/////////////////////////////////////////////////
 bool NetworkSecondary::RegisterWithPrimary() {
   msgs::ConnectionRequest req;
 
-  req.set_secondary_uuid(this->dataPtr->uuid.String());
+  req.set_secondary_uuid(this->uuid.String());
 
   msgs::ConnectionResponse resp;
   bool result;
   unsigned int timeout = 1000;
-  bool executed = dataPtr->node->Request("/register", req, timeout, resp, result);
+  bool executed = node->Request("/register", req, timeout, resp, result);
 
   if (executed) {
     if (result) {
       igndbg << "Registration success" << std::endl;
-      dataPtr->is_registered = true;
+      is_registered = true;
       return true;
     } else {
       igndbg << "Registration failure" << std::endl;
@@ -57,14 +54,17 @@ bool NetworkSecondary::RegisterWithPrimary() {
   }
 }
 
+/////////////////////////////////////////////////
 void NetworkSecondary::Run()
 {
 }
 
+/////////////////////////////////////////////////
 void NetworkSecondary::Stop()
 {
 }
 
+/////////////////////////////////////////////////
 bool NetworkSecondary::Running()
 {
   return false;

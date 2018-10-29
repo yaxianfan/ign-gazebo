@@ -16,30 +16,50 @@ namespace gazebo
 {
 namespace systems
 {
+  // Inline bracket to help doxygen filtering.
   inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
+
+    /// \brief Structure to hold all relevant Secondary information.
     struct IGNITION_GAZEBO_VISIBLE ClientInfo {
+      /// \brief Network Secondary Unique Identifier
       std::string uuid;
     };
 
+    /// \brief Class to manage network secondary registration/deregistration
     class IGNITION_GAZEBO_VISIBLE ClientManager
     {
-      public: ClientManager(const std::shared_ptr<ignition::transport::Node> &_node,
+      /// \brief Constructor
+      /// \param[in] _node Instance of an ignition transport Node to use.
+      /// \param[in] _expected_num_clients Expected number of clients.
+      public: ClientManager(const std::shared_ptr<transport::Node> &_node,
                             size_t _expected_num_clients);
 
+      /// \brief Destructor
       public: ~ClientManager();
 
       public: bool Ready();
 
+      /// \brief Callback for secondary registration request
       private: bool registerClient(const msgs::ConnectionRequest &_req,
                                    msgs::ConnectionResponse &_resp);
+
+      /// \brief Callback for secondary deregistration request
       private: bool unregisterClient(const msgs::ConnectionRequest &_req,
                                      msgs::ConnectionResponse &_resp);
 
+      /// \brief Transport Node.
       private: std::shared_ptr<ignition::transport::Node> node;
+
+      /// \brief Expected number of network secondaries to join
       private: size_t expected_num_clients;
 
+      /// \breif Clients mutex
       private: std::mutex client_mutex;
+
+      /// \brief Clients condition variable
       private: std::condition_variable client_cv;
+
+      /// \brief Registered client information.
       private: std::map<std::string, ClientInfo> clients;
     };
   }  // namespace IGNITION_GAZEBO_VERSION_NAMESPACE

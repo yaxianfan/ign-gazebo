@@ -105,6 +105,10 @@ namespace ignition
       /// \brief Stop running
       public: void Stop();
 
+      /// \brief Execute a single step of the simulationrunner.
+      /// \return True if the operation completed successfully.
+      public: bool Step();
+
       /// \brief Run the simulationrunner.
       /// \param[in] _iterations Number of iterations.
       /// \return True if the operation completed successfully.
@@ -166,6 +170,9 @@ namespace ignition
       /// \return True if the simulation runner is paused, false otherwise.
       public: bool Paused() const;
 
+      /// \brief Wait for system to be running and unpaused.
+      public: void WaitForUnpause() const;
+
       /// \brief Get the EntityComponentManager
       /// \return Reference to the entity component manager.
       public: const EntityComponentManager &EntityCompMgr() const;
@@ -205,6 +212,9 @@ namespace ignition
       /// \brief This is used to indicate that Run has been called, and the
       /// server is in the run state.
       private: std::atomic<bool> running{false};
+
+      /// \brief This is used to indicate that the runner is paused.
+      private: std::atomic<bool> paused{false};
 
       /// \brief All the systems.
       private: std::vector<SystemInternal> systems;

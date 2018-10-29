@@ -268,6 +268,80 @@ void SimulationRunner::Stop()
   this->StopSystems();
 }
 
+bool SimulationRunner::Step() {
+  // Variables for time keeping.
+  std::chrono::steady_clock::duration sleepTime;
+  std::chrono::steady_clock::time_point startTime;
+  std::chrono::steady_clock::duration actualSleep;
+
+  // Compute the time to sleep in order to match, as closely as possible,
+  // the update period.
+  sleepTime = std::max(0ns, this->prevUpdateRealTime +
+      this->updatePeriod - std::chrono::steady_clock::now() -
+      this->sleepOffset);
+  actualSleep = 0ns;
+
+  // Only sleep if needed.
+  if (sleepTime > 0ns)
+  {
+    // Get the current time, sleep for the duration needed to match the
+    // updatePeriod, and then record the actual time slept.
+    startTime = std::chrono::steady_clock::now();
+    std::this_thread::sleep_for(sleepTime);
+    actualSleep = std::chrono::steady_clock::now() - startTime;
+  }
+
+  // Exponentially average out the difference between expected sleep time
+  // and actual sleep time.
+  this->sleepOffset =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(
+        (actualSleep - sleepTime) * 0.01 + this->sleepOffset * 0.99);
+
+  // Update time information. This will update the iteration count, RTF,
+  // and other values.
+  this->UpdateCurrentInfo();
+
+  // Publish info
+  this->PublishStats();
+
+  // Record when the update step starts.
+  this->prevUpdateRealTime = std::chrono::steady_clock::now();
+
+  // Update all the systems.
+  this->UpdateSystems();
+
+  if (!this->Paused() && this->pendingSimIterations > 0)
+  {
+    // Decrement the pending sim iterations, if there are any.
+    --this->pendingSimIterations;
+    // If this is was the last sim iterations, then re-pause simulation.
+    if (this->pendingSimIterations <= 0)
+    {
+      this->SetPaused(true);
+    }
+  }
+
+  // Process world control messages.
+  this->ProcessMessages();
+
+  return true;
+}
+
+/////////////////////////////////////////////////
+void SimulationRunner::WaitForUnpause() const {
+  if (this->running && !this->paused) {
+    return;
+  }
+
+  while(this->running && this->paused) {
+    // \todo(mjcarroll) replace with condition_variable.
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+
+  return;
+}
+
+
 /////////////////////////////////////////////////
 bool SimulationRunner::Run(const uint64_t _iterations)
 {
@@ -278,18 +352,19 @@ bool SimulationRunner::Run(const uint64_t _iterations)
   // in the design.
 
   ignmsg << "SimulationRunner::Run" << std::endl;
+  this->running = true;
 
-  // Keep track of wall clock time. Only start the realTimeWatch if this
-  // runner is not paused.
-  if (!this->currentInfo.paused) {
+  this->WaitForUnpause();
+
+  if(!this->running) {
+    return false;
+  }
+
+  if(!this->paused) {
+    // Keep track of wall clock time. Only start the realTimeWatch if this
+    // runner is not paused.
     this->realTimeWatch.Start();
-
-  // Variables for time keeping.
-  std::chrono::steady_clock::time_point startTime;
-  std::chrono::steady_clock::duration sleepTime;
-  std::chrono::steady_clock::duration actualSleep;
-
-  this->running = this->currentInfo.paused;
+  }
 
   // Execute all the systems until we are told to stop, or the number of
   // iterations is reached.
@@ -297,56 +372,13 @@ bool SimulationRunner::Run(const uint64_t _iterations)
        this->running && (_iterations == 0 ||
          this->currentInfo.iterations < _iterations + startingIterations);)
   {
-    ignmsg << "SimulationRunner::Run " << this->currentInfo.iterations << std::endl;
-    // Compute the time to sleep in order to match, as closely as possible,
-    // the update period.
-    sleepTime = std::max(0ns, this->prevUpdateRealTime +
-        this->updatePeriod - std::chrono::steady_clock::now() -
-        this->sleepOffset);
-    actualSleep = 0ns;
+    this->WaitForUnpause();
 
-    // Only sleep if needed.
-    if (sleepTime > 0ns)
-    {
-      // Get the current time, sleep for the duration needed to match the
-      // updatePeriod, and then record the actual time slept.
-      startTime = std::chrono::steady_clock::now();
-      std::this_thread::sleep_for(sleepTime);
-      actualSleep = std::chrono::steady_clock::now() - startTime;
+    if(!this->running) {
+      return false;
     }
 
-    // Exponentially average out the difference between expected sleep time
-    // and actual sleep time.
-    this->sleepOffset =
-      std::chrono::duration_cast<std::chrono::nanoseconds>(
-          (actualSleep - sleepTime) * 0.01 + this->sleepOffset * 0.99);
-
-    // Update time information. This will update the iteration count, RTF,
-    // and other values.
-    this->UpdateCurrentInfo();
-
-    // Publish info
-    this->PublishStats();
-
-    // Record when the update step starts.
-    this->prevUpdateRealTime = std::chrono::steady_clock::now();
-
-    // Update all the systems.
-    this->UpdateSystems();
-
-    if (!this->Paused() && this->pendingSimIterations > 0)
-    {
-      // Decrement the pending sim iterations, if there are any.
-      --this->pendingSimIterations;
-      // If this is was the last sim iterations, then re-pause simulation.
-      if (this->pendingSimIterations <= 0)
-      {
-        this->SetPaused(true);
-      }
-    }
-
-    // Process world control messages.
-    this->ProcessMessages();
+    this->Step();
   }
 
   this->running = false;
@@ -522,6 +554,8 @@ void SimulationRunner::SetPaused(const bool _paused)
     else
       this->realTimeWatch.Start();
   }
+
+  this->paused = _paused;
 
   // Store the pause state
   this->currentInfo.paused = _paused;

@@ -6,57 +6,71 @@
 
 using namespace ignition::gazebo::systems;
 
-struct IGNITION_GAZEBO_VERSION_NAMESPACE::NetworkPrimaryPrivate {
-  std::shared_ptr<ignition::transport::Node> node;
-  std::unique_ptr<ClientManager> manager;
-};
-
+/////////////////////////////////////////////////
 NetworkPrimary::NetworkPrimary():
-  dataPtr(std::make_unique<NetworkPrimaryPrivate>())
+  node(std::make_shared<ignition::transport::Node>())
 {
 }
 
+/////////////////////////////////////////////////
 NetworkPrimary::~NetworkPrimary()
 {
 }
 
+/////////////////////////////////////////////////
 void NetworkPrimary::Init(const sdf::ElementPtr &_sdf)
 {
   int num_clients = _sdf->Get<int>("num_clients");
-  dataPtr->node = std::make_shared<ignition::transport::Node>();
-  dataPtr->manager = std::make_unique<ClientManager>(dataPtr->node, num_clients);
+  manager = std::make_unique<ClientManager>(node, num_clients);
 }
 
+/////////////////////////////////////////////////
 void NetworkPrimary::Run()
 {
-  client_thread = std::thread(&NetworkPrimary::WaitForClients, this);
+  client_thread = std::make_unique<std::thread>(&NetworkPrimary::WaitForClients, this);
 }
 
+/////////////////////////////////////////////////
 void NetworkPrimary::Stop()
 {
   running = false;
-  client_thread.join();
-  worker_thread.join();
+  if(client_thread) {
+    client_thread->join();
+    client_thread.release();
+  }
+
+  if(worker_thread) {
+    worker_thread->join();
+    worker_thread.release();
+  }
 }
 
+/////////////////////////////////////////////////
 bool NetworkPrimary::Running()
 {
   return running;
 }
 
+/////////////////////////////////////////////////
 void NetworkPrimary::WaitForClients()
 {
-  while(running && !this->dataPtr->manager->Ready()) {
+  while(running && !this->manager->Ready()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     ignmsg << "Waiting for all network secondaries to join" << std::endl;
   }
-  ignmsg << "All network secondaries to joined" << std::endl;
 
+  if(!running) {
+    ignmsg << "Interrupted while waiting for network secondaries to join" << std::endl;
+    return;
+  }
+
+  ignmsg << "All network secondaries joined" << std::endl;
 
   // Once all clients are discovered, initiate execution.
-  worker_thread = std::thread(&NetworkPrimary::WorkLoop, this);
+  worker_thread = std::make_unique<std::thread>(&NetworkPrimary::WorkLoop, this);
 }
 
+/////////////////////////////////////////////////
 void NetworkPrimary::WorkLoop()
 {
   while(running) {

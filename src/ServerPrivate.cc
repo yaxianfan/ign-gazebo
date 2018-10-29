@@ -80,7 +80,6 @@ bool ServerPrivate::Run(const uint64_t _iterations,
   bool result = true;
 
   ignmsg << "ServerPrivate::Run" << std::endl;
-
   // Minor performance tweak. In many situations there will only be one
   // simulation runner, and we can avoid using the thread pool.
   if (this->simRunners.size() == 1)

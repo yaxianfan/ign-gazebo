@@ -7,6 +7,7 @@
 
 using namespace ignition::gazebo::systems;
 
+/////////////////////////////////////////////////
 ClientManager::ClientManager(const std::shared_ptr<ignition::transport::Node> &_node,
                              size_t _expected_num_clients):
   node(_node),
@@ -16,17 +17,20 @@ ClientManager::ClientManager(const std::shared_ptr<ignition::transport::Node> &_
   node->Advertise("/unregister", &ClientManager::unregisterClient, this);
 }
 
+/////////////////////////////////////////////////
 ClientManager::~ClientManager()
 {
 }
 
+/////////////////////////////////////////////////
 bool ClientManager::Ready() {
   std::unique_lock<std::mutex> lock(client_mutex);
   return this->clients.size() == this->expected_num_clients;
 }
 
+/////////////////////////////////////////////////
 bool ClientManager::registerClient(const msgs::ConnectionRequest &_req,
-                                   msgs::ConnectionResponse &_resp)
+                                   msgs::ConnectionResponse &/*_resp*/)
 {
   ClientInfo info;
   info.uuid = _req.secondary_uuid();
@@ -42,8 +46,9 @@ bool ClientManager::registerClient(const msgs::ConnectionRequest &_req,
   return true;
 }
 
+/////////////////////////////////////////////////
 bool ClientManager::unregisterClient(const msgs::ConnectionRequest &_req,
-                                     msgs::ConnectionResponse &_resp)
+                                     msgs::ConnectionResponse &/*_resp*/)
 {
   std::unique_lock<std::mutex> lock(client_mutex);
 
