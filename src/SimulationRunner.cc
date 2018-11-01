@@ -229,7 +229,7 @@ void SimulationRunner::AddSystem(const SystemPluginPtr &_system)
 /////////////////////////////////////////////////
 void SimulationRunner::RunSystems()
 {
-  for(auto& system : this->systemsRunnable) {
+  for (auto& system : this->systemsRunnable) {
     system->Run();
   }
 }
@@ -237,7 +237,7 @@ void SimulationRunner::RunSystems()
 /////////////////////////////////////////////////
 void SimulationRunner::StopSystems()
 {
-  for(auto& system: this->systemsRunnable) {
+  for (auto& system : this->systemsRunnable) {
     system->Stop();
   }
 }
@@ -279,7 +279,7 @@ bool SimulationRunner::Run(const uint64_t _iterations)
 
   this->running = true;
 
-  if(!this->paused) {
+  if (!this->paused) {
     // Keep track of wall clock time. Only start the realTimeWatch if this
     // runner is not paused.
     this->realTimeWatch.Start();
@@ -330,11 +330,11 @@ bool SimulationRunner::Run(const uint64_t _iterations)
     // Record when the update step starts.
     this->prevUpdateRealTime = std::chrono::steady_clock::now();
 
-    if(!this->paused) {
+    if (!this->paused) {
       // Update all the systems.
       this->UpdateSystems();
 
-      if(this->pendingSimIterations > 0)
+      if (this->pendingSimIterations > 0)
       {
         --pendingSimIterations;
         if (this->pendingSimIterations <= 0)
