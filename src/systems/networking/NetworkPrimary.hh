@@ -37,6 +37,7 @@ namespace systems
     /// \brief System Plugin for primary distributed simulation instance.
     class IGNITION_GAZEBO_VISIBLE NetworkPrimary:
       public System,
+      public ISystemConfigure,
       public ISystemRunnable
     {
       /// \brief Constructor
@@ -47,6 +48,9 @@ namespace systems
 
       /// \brief Initialize the system plugin from SDF file content.
       public: void Init(const sdf::ElementPtr &_sdf) override;
+
+      public: void Configure(EntityComponentManager& _ecm,
+                             EventManager* _eventMgr) override;
 
       /// \brief Run the plugin's background threads
       public: void Run() override;
@@ -69,6 +73,8 @@ namespace systems
 
       /// \brief Thread responsible for main plugin execution loop
       private: std::unique_ptr<std::thread> worker_thread;
+
+      private: EventManager* eventMgr;
 
       /// \brief used to indicate that run has been called and that the
       /// background threads are executing.

@@ -80,6 +80,8 @@ class ignition::gazebo::SystemManagerPrivate
       return false;
     }
 
+    igndbg << "Loading library: " << pathToLib << std::endl;
+
     auto pluginNames = loader.LoadLibrary(pathToLib);
     if (pluginNames.empty())
     {

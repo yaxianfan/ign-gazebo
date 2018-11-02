@@ -19,6 +19,7 @@
 
 #include <ignition/gazebo/config.hh>
 #include <ignition/gazebo/EntityComponentManager.hh>
+#include <ignition/gazebo/EventManager.hh>
 #include <ignition/gazebo/Export.hh>
 #include <ignition/gazebo/Types.hh>
 
@@ -70,6 +71,11 @@ namespace ignition
       public: virtual void Run() = 0;
       public: virtual void Stop() = 0;
       public: virtual bool Running() = 0;
+    };
+
+    class IGNITION_GAZEBO_VISIBLE ISystemConfigure {
+      public: virtual void Configure(EntityComponentManager &_ecm,
+                                     EventManager* _eventMgr) = 0;
     };
 
     /// /class ISystemPreUpdate ISystem.hh ignition/gazebo/System.hh

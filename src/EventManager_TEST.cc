@@ -14,24 +14,19 @@
  * limitations under the License.
  *
 */
-#ifndef IGNITION_GAZEBO_SYSTEMPLUGINPTR_HH_
-#define IGNITION_GAZEBO_SYSTEMPLUGINPTR_HH_
 
-#include <ignition/plugin/SpecializedPluginPtr.hh>
-#include <ignition/gazebo/System.hh>
+#include <gtest/gtest.h>
 
-namespace ignition
+#include "ignition/gazebo/Events.hh"
+#include "ignition/gazebo/EventManager.hh"
+
+using namespace ignition;
+
+/////////////////////////////////////////////////
+TEST(EventManager, Constructor)
 {
-  namespace gazebo
-  {
-    using SystemPluginPtr = ignition::plugin::SpecializedPluginPtr<
-      System,
-      ISystemConfigure,
-      ISystemRunnable,
-      ISystemPreUpdate,
-      ISystemUpdate,
-      ISystemPostUpdate>;
-  }
+  gazebo::EventManager event_manager;
+
+  event_manager.Emit<ignition::gazebo::events::Pause>(true);
 }
 
-#endif

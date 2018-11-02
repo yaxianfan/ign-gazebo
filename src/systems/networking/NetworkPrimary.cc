@@ -18,10 +18,14 @@
 
 #include <ignition/common/Console.hh>
 #include <ignition/plugin/Register.hh>
+#include <ignition/gazebo/Events.hh>
 
 #include "ClientManager.hh"
 
 using namespace ignition::gazebo::systems;
+using namespace ignition::gazebo::events;
+
+struct NetworkComponent {};
 
 /////////////////////////////////////////////////
 NetworkPrimary::NetworkPrimary():
@@ -41,9 +45,20 @@ void NetworkPrimary::Init(const sdf::ElementPtr &_sdf)
   manager = std::make_unique<ClientManager>(node, num_clients);
 }
 
+void NetworkPrimary::Configure(EntityComponentManager& _ecm,
+                               EventManager* _eventMgr)
+{
+  auto network_entity = _ecm.CreateEntity();
+  NetworkComponent network_component;
+  _ecm.CreateComponent(network_entity, network_component);
+
+  eventMgr = _eventMgr;
+}
+
 /////////////////////////////////////////////////
 void NetworkPrimary::Run()
 {
+  running = true;
   client_thread = std::make_unique<std::thread>(
       &NetworkPrimary::WaitForClients, this);
 }
@@ -74,16 +89,16 @@ void NetworkPrimary::WaitForClients()
 {
   while (running && !this->manager->Ready()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    ignmsg << "Waiting for all network secondaries to join" << std::endl;
+    igndbg << "Waiting for all network secondaries to join" << std::endl;
   }
 
   if (!running) {
-    ignmsg << "Interrupted while waiting for network secondaries to join" <<
+    ignwarn << "Interrupted while waiting for network secondaries to join" <<
       std::endl;
     return;
   }
 
-  ignmsg << "All network secondaries joined" << std::endl;
+  igndbg << "All network secondaries joined" << std::endl;
 
   // Once all clients are discovered, initiate execution.
   worker_thread = std::make_unique<std::thread>(&NetworkPrimary::WorkLoop,
@@ -93,6 +108,8 @@ void NetworkPrimary::WaitForClients()
 /////////////////////////////////////////////////
 void NetworkPrimary::WorkLoop()
 {
+  eventMgr->Emit<events::Pause>(false);
+
   while (running) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
@@ -100,4 +117,5 @@ void NetworkPrimary::WorkLoop()
 
 IGNITION_ADD_PLUGIN(ignition::gazebo::systems::NetworkPrimary,
                     ignition::gazebo::System,
-                    NetworkPrimary::ISystemRunnable)
+                    NetworkPrimary::ISystemRunnable,
+                    NetworkPrimary::ISystemConfigure)

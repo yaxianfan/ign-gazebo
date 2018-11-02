@@ -27,6 +27,7 @@
 #include <utility>
 #include <vector>
 
+#include <ignition/common/Event.hh>
 #include <ignition/common/WorkerPool.hh>
 #include <ignition/transport/Node.hh>
 
@@ -34,6 +35,7 @@
 
 #include "ignition/gazebo/config.hh"
 #include "ignition/gazebo/EntityComponentManager.hh"
+#include "ignition/gazebo/EventManager.hh"
 #include "ignition/gazebo/Export.hh"
 #include "ignition/gazebo/System.hh"
 #include "ignition/gazebo/SystemPluginPtr.hh"
@@ -57,6 +59,7 @@ namespace ignition
       public: explicit SystemInternal(const SystemPluginPtr &_systemPlugin)
               : systemPlugin(_systemPlugin),
                 system(systemPlugin->QueryInterface<System>()),
+                configure(systemPlugin->QueryInterface<ISystemConfigure>()),
                 preupdate(systemPlugin->QueryInterface<ISystemPreUpdate>()),
                 update(systemPlugin->QueryInterface<ISystemUpdate>()),
                 postupdate(systemPlugin->QueryInterface<ISystemPostUpdate>()),
@@ -70,6 +73,10 @@ namespace ignition
 
       /// \brief Access this system via the `System` interface
       public: System *system = nullptr;
+
+      /// \brief Access this system via the ISystemConfigure interface
+      /// Will be nullptr if the System doesn't implement this interface.
+      public: ISystemConfigure *configure = nullptr;
 
       /// \brief Access this system via the ISystemPreUpdate interface
       /// Will be nullptr if the System doesn't implement this interface.
@@ -116,6 +123,9 @@ namespace ignition
 
       /// \brief Update all the systems
       public: void UpdateSystems();
+
+      /// \brief Configure all the systems that implement Configure interface.
+      public: void ConfigureSystems();
 
       /// \brief Run all the systems that implement Runnable interface.
       public: void RunSystems();
@@ -170,6 +180,10 @@ namespace ignition
       /// \return Reference to the entity component manager.
       public: const EntityComponentManager &EntityCompMgr() const;
 
+      /// \brief Get the EventManager
+      /// \return Reference to the event manager.
+      public: const EventManager &EventMgr() const;
+
       /// \brief Get the current info object.
       /// \return Current info.
       public: const UpdateInfo &CurrentInfo() const;
@@ -212,6 +226,9 @@ namespace ignition
       /// \brief All the systems.
       private: std::vector<SystemInternal> systems;
 
+      /// \brief Systems implementing Configure
+      private: std::vector<ISystemConfigure*> systemsConfigure;
+
       /// \brief Systems implementing PreUpdate
       private: std::vector<ISystemPreUpdate*> systemsPreupdate;
 
@@ -223,6 +240,9 @@ namespace ignition
 
       /// \brief Systems implementing Runnable
       private: std::vector<ISystemRunnable*> systemsRunnable;
+
+      /// \brief Manager of all events.
+      private: EventManager eventMgr;
 
       /// \brief Manager of all components.
       private: EntityComponentManager entityCompMgr;
@@ -261,6 +281,8 @@ namespace ignition
 
       /// \brief Step size
       private: ignition::math::clock::duration stepSize{10ms};
+
+      private: ignition::common::ConnectionPtr pauseConn;
 
       /// \brief The real time factor calculated based on sim and real time
       /// averages.
