@@ -18,6 +18,7 @@ set (sources
   SimulationRunner.cc
   System.cc
   SystemManager.cc
+  View.cc
 )
 
 set (gtest_sources

@@ -186,12 +186,12 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &/*_info*/,
                   components::Name>(
       [&](const EntityId &_entity,
           const components::World */*_worldComp*/,
-          const components::Name *_nameComp)
+          const components::Name *_nameComp)->bool
       {
         if (kNullEntity != this->dataPtr->worldId)
         {
           ignerr << "Internal error, more than one world found." << std::endl;
-          return;
+          return true;
         }
         this->dataPtr->worldId = _entity;
 
@@ -203,6 +203,7 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &/*_info*/,
         // Add to graph
         this->dataPtr->sceneGraph.AddVertex(
             _nameComp->Data(), nullptr, _entity);
+        return true;
       });
 
     if (kNullEntity == this->dataPtr->worldId)
@@ -220,7 +221,7 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &/*_info*/,
           const components::Model */*_modelComp*/,
           const components::Name *_nameComp,
           const components::ParentEntity *_parentComp,
-          const components::Pose *_poseComp)
+          const components::Pose *_poseComp)->bool
       {
         auto modelMsg = std::make_shared<msgs::Model>();
         modelMsg->set_id(_entity);
@@ -238,6 +239,7 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &/*_info*/,
         msgs::Set(pose, _poseComp->Data());
         pose->set_name(_nameComp->Data());
         pose->set_id(_entity);
+        return true;
       });
 
     // Links
@@ -249,7 +251,7 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &/*_info*/,
           const components::Link */*_linkComp*/,
           const components::Name *_nameComp,
           const components::ParentEntity *_parentComp,
-          const components::Pose *_poseComp)
+          const components::Pose *_poseComp)->bool
       {
         auto linkMsg = std::make_shared<msgs::Link>();
         linkMsg->set_id(_entity);
@@ -267,6 +269,7 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &/*_info*/,
         msgs::Set(pose, _poseComp->Data());
         pose->set_name(_nameComp->Data());
         pose->set_id(_entity);
+        return true;
       });
 
     // Visuals
@@ -278,7 +281,7 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &/*_info*/,
           const components::Visual */*_visualComp*/,
           const components::Name *_nameComp,
           const components::ParentEntity *_parentComp,
-          const components::Pose *_poseComp)
+          const components::Pose *_poseComp)->bool
       {
         auto visualMsg = std::make_shared<msgs::Visual>();
         visualMsg->set_id(_entity);
@@ -314,6 +317,7 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &/*_info*/,
         msgs::Set(pose, _poseComp->Data());
         pose->set_name(_nameComp->Data());
         pose->set_id(_entity);
+        return true;
       });
   }
   this->dataPtr->posePub.Publish(poseMsg);

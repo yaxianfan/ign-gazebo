@@ -37,12 +37,7 @@ static const char kDefaultWorld[] =
       "    <ignition-gui>"
       "      <title>3D View</title>"
       "      <property type='bool' key='showTitleBar'>false</property>"
-      "      <property type='bool' key='resizable'>false</property>"
-      "      <property type='double' key='z'>0</property>"
-      "      <anchor line='right' target='window' target_line='right'/>"
-      "      <anchor line='left' target='window' target_line='left'/>"
-      "      <anchor line='top' target='window' target_line='top'/>"
-      "      <anchor line='bottom' target='window' target_line='bottom'/>"
+      "      <property type='string' key='state'>docked</property>"
       "    </ignition-gui>"
       "    <engine>ogre</engine>"
       "    <scene>scene</scene>"
@@ -60,8 +55,11 @@ static const char kDefaultWorld[] =
       "      <property type='double' key='height'>72</property>"
       "      <property type='double' key='width'>121</property>"
       "      <property type='double' key='z'>1</property>"
-      "      <anchor line='left' target='window' target_line='left'/>"
-      "      <anchor line='bottom' target='window' target_line='bottom'/>"
+      "      <property type='string' key='state'>floating</property>"
+      "      <anchors target='3D View'>"
+      "        <line own='left' target='left'/>"
+      "        <line own='bottom' target='bottom'/>"
+      "      </anchors>"
       "    </ignition-gui>"
       "    <play_pause>true</play_pause>"
       "    <step>true</step>"
@@ -77,8 +75,11 @@ static const char kDefaultWorld[] =
       "      <property type='double' key='height'>110</property>"
       "      <property type='double' key='width'>290</property>"
       "      <property type='double' key='z'>1</property>"
-      "      <anchor line='right' target='window' target_line='right'/>"
-      "      <anchor line='bottom' target='window' target_line='bottom'/>"
+      "      <property type='string' key='state'>floating</property>"
+      "      <anchors target='3D View'>"
+      "        <line own='right' target='right'/>"
+      "        <line own='bottom' target='bottom'/>"
+      "      </anchors>"
       "    </ignition-gui>"
       "    <sim_time>true</sim_time>"
       "    <real_time>true</real_time>"
@@ -262,3 +263,44 @@ std::optional<bool> Server::AddSystem(const SystemPluginPtr &_system,
 
   return std::nullopt;
 }
+
+//////////////////////////////////////////////////
+bool Server::HasEntity(const std::string &_name,
+                       const unsigned int _worldIndex) const
+{
+  if (_worldIndex < this->dataPtr->simRunners.size())
+    return this->dataPtr->simRunners[_worldIndex]->HasEntity(_name);
+
+  return false;
+}
+
+//////////////////////////////////////////////////
+std::optional<EntityId> Server::EntityByName(const std::string &_name,
+    const unsigned int _worldIndex) const
+{
+  if (_worldIndex < this->dataPtr->simRunners.size())
+    return this->dataPtr->simRunners[_worldIndex]->EntityByName(_name);
+
+  return std::nullopt;
+}
+
+//////////////////////////////////////////////////
+bool Server::RequestEraseEntity(const std::string &_name,
+                       const unsigned int _worldIndex)
+{
+  if (_worldIndex < this->dataPtr->simRunners.size())
+    return this->dataPtr->simRunners[_worldIndex]->RequestEraseEntity(_name);
+
+  return false;
+}
+
+//////////////////////////////////////////////////
+bool Server::RequestEraseEntity(const EntityId _id,
+                                const unsigned int _worldIndex)
+{
+  if (_worldIndex < this->dataPtr->simRunners.size())
+    return this->dataPtr->simRunners[_worldIndex]->RequestEraseEntity(_id);
+
+  return false;
+}
+
