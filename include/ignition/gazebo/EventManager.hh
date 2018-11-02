@@ -45,6 +45,11 @@ namespace ignition
       /// \brief Destructor
       public: ~EventManager();
 
+      /// \brief Add a connection to an event.
+      /// \param[in] _subscriber A std::function callback function. The function
+      ///   signature must match that of the event (template parameter E).
+      /// \return A Connection object, which will automatically call
+      /// Disconnect when it goes out of scope.
       public: template <typename E>
               ignition::common::ConnectionPtr
               Connect(const typename E::CallbackT &_subscriber)
@@ -54,6 +59,8 @@ namespace ignition
                 }
 
                 E* event_ptr = dynamic_cast<E*>(events[typeid(E)].get());
+                // All values in the map should be derived from Event,
+                // so this shouldn't be an issue, but it doesn't hurt to check.
                 if (event_ptr != nullptr)
                 {
                   return event_ptr->Connect(_subscriber);
@@ -61,22 +68,33 @@ namespace ignition
                 return nullptr;
               }
 
+      /// \brief Emit an event signal to connected subscribers.
+      /// \param[in] args function arguments to be passed to the event
+      /// callbacks. Must match the signature of the event type E.
       public: template <typename E, typename ... Args>
               void Emit(Args && ... args)
               {
                 if (events.find(typeid(E)) == events.end())
                 {
+                  // If there are no events of type E in the map, there are
+                  // no connections to signal .
                   return;
                 }
+
                 E* event_ptr = dynamic_cast<E*>(events[typeid(E)].get());
+                // All values in the map should be derived from Event,
+                // so this shouldn't be an issue, but it doesn't hurt to check.
                 if (event_ptr != nullptr)
                 {
                   event_ptr->Signal(std::forward<Args>(args) ...);
                 }
               }
 
+
+      /// \brief Convenience type for storing typeinfo references.
       private: using TypeInfoRef = std::reference_wrapper<const std::type_info>;
 
+      /// \brief Hash functor for TypeInfoRef
       private: struct Hasher {
                  std::size_t operator()(TypeInfoRef code) const
                  {
@@ -84,6 +102,7 @@ namespace ignition
                  }
                };
 
+      /// \brief Equality functor for TypeInfoRef
       private: struct EqualTo {
                  bool operator()(TypeInfoRef lhs, TypeInfoRef rhs) const
                  {
@@ -91,6 +110,7 @@ namespace ignition
                  }
                };
 
+      /// \brief Container of used signals.
       private: std::unordered_map<TypeInfoRef,
                                   std::unique_ptr<ignition::common::Event>,
                                   Hasher, EqualTo> events;
