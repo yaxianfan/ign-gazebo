@@ -15,7 +15,10 @@
  *
 */
 
+#include <vector>
+
 #include <sdf/Collision.hh>
+#include <sdf/Joint.hh>
 #include <sdf/Link.hh>
 #include <sdf/Model.hh>
 #include <sdf/Physics.hh>
@@ -26,12 +29,17 @@
 
 #include "ignition/gazebo/components/Collision.hh"
 #include "ignition/gazebo/components/ChildEntity.hh"
+#include "ignition/gazebo/components/ChildLinkName.hh"
 #include "ignition/gazebo/components/Geometry.hh"
 #include "ignition/gazebo/components/Inertial.hh"
+#include "ignition/gazebo/components/Joint.hh"
+#include "ignition/gazebo/components/JointAxis.hh"
+#include "ignition/gazebo/components/JointType.hh"
 #include "ignition/gazebo/components/Link.hh"
 #include "ignition/gazebo/components/Material.hh"
 #include "ignition/gazebo/components/Model.hh"
 #include "ignition/gazebo/components/Name.hh"
+#include "ignition/gazebo/components/ParentLinkName.hh"
 #include "ignition/gazebo/components/ParentEntity.hh"
 #include "ignition/gazebo/components/Pose.hh"
 #include "ignition/gazebo/components/Static.hh"
@@ -449,6 +457,44 @@ void SimulationRunner::CreateEntities(const sdf::World *_world)
               components::Geometry(*collision->Geom()));
         }
       }
+    }
+    // Joints
+    for (uint64_t jointIndex = 0; jointIndex < model->JointCount();
+        ++jointIndex)
+    {
+      auto joint = model->JointByIndex(jointIndex);
+
+      // Entity
+      EntityId jointEntity = this->entityCompMgr.CreateEntity();
+
+      // Components
+      this->entityCompMgr.CreateComponent(jointEntity,
+          components::Joint());
+      this->entityCompMgr.CreateComponent(jointEntity,
+          components::JointType(joint->Type()));
+
+      if (joint->Axis(0))
+      {
+        this->entityCompMgr.CreateComponent(jointEntity,
+            components::JointAxis(*joint->Axis(0)));
+      }
+
+      if (joint->Axis(1))
+      {
+        this->entityCompMgr.CreateComponent(jointEntity,
+            components::JointAxis2(*joint->Axis(1)));
+      }
+
+      this->entityCompMgr.CreateComponent(jointEntity,
+          components::Pose(joint->Pose()));
+      this->entityCompMgr.CreateComponent(jointEntity ,
+          components::Name(joint->Name()));
+      this->entityCompMgr.CreateComponent(jointEntity,
+          components::ParentEntity(modelEntity));
+      this->entityCompMgr.CreateComponent(jointEntity,
+          components::ParentLinkName(joint->ParentLinkName()));
+      this->entityCompMgr.CreateComponent(jointEntity,
+          components::ChildLinkName(joint->ChildLinkName()));
     }
   }
 }
