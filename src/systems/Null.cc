@@ -42,6 +42,22 @@ void Null::Configure(EntityComponentManager &/*_ecm*/,
 }
 
 //////////////////////////////////////////////////
+void Null::Run()
+{
+}
+
+//////////////////////////////////////////////////
+void Null::Stop()
+{
+}
+
+//////////////////////////////////////////////////
+bool Null::Running() const
+{
+  return false;
+}
+
+//////////////////////////////////////////////////
 void Null::PreUpdate(const UpdateInfo &/*_info*/,
                      EntityComponentManager &/*_ecm*/)
 {
@@ -62,6 +78,7 @@ void Null::PostUpdate(const UpdateInfo &/*_info*/,
 IGNITION_ADD_PLUGIN(ignition::gazebo::systems::Null,
                     ignition::gazebo::System,
                     Null::ISystemConfigure,
+                    Null::ISystemRunnable,
                     Null::ISystemPreUpdate,
                     Null::ISystemUpdate,
                     Null::ISystemPostUpdate)
