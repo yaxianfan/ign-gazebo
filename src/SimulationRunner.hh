@@ -260,16 +260,16 @@ namespace ignition
       private: std::vector<SystemInternal> systems;
 
       /// \brief Systems implementing Configure
-      private: std::vector<ISystemConfigure*> systemsConfigure;
+      private: std::vector<ISystemConfigure *> systemsConfigure;
 
       /// \brief Systems implementing Runnable
-      private: std::vector<ISystemRunnable*> systemsRunnable;
+      private: std::vector<ISystemRunnable *> systemsRunnable;
 
       /// \brief Systems implementing PreUpdate
-      private: std::vector<ISystemPreUpdate*> systemsPreupdate;
+      private: std::vector<ISystemPreUpdate *> systemsPreupdate;
 
       /// \brief Systems implementing Update
-      private: std::vector<ISystemUpdate*> systemsUpdate;
+      private: std::vector<ISystemUpdate *> systemsUpdate;
 
       /// \brief Systems implementing PostUpdate
       private: std::vector<ISystemPostUpdate*> systemsPostupdate;

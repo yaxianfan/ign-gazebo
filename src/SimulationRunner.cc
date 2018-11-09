@@ -247,7 +247,8 @@ void SimulationRunner::ConfigureSystems()
 /////////////////////////////////////////////////
 void SimulationRunner::RunSystems()
 {
-  for (auto& system : this->systemsRunnable) {
+  for (auto &system : this->systemsRunnable)
+  {
     system->Run();
   }
 }
@@ -255,7 +256,8 @@ void SimulationRunner::RunSystems()
 /////////////////////////////////////////////////
 void SimulationRunner::StopSystems()
 {
-  for (auto& system : this->systemsRunnable) {
+  for (auto &system : this->systemsRunnable)
+  {
     system->Stop();
   }
 }
