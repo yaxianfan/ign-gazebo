@@ -27,6 +27,7 @@ namespace ignition
     using SystemPluginPtr = ignition::plugin::SpecializedPluginPtr<
       System,
       ISystemConfigure,
+      ISystemRunnable,
       ISystemPreUpdate,
       ISystemUpdate,
       ISystemPostUpdate

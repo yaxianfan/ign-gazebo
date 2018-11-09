@@ -60,6 +60,7 @@ namespace ignition
               : systemPlugin(_systemPlugin),
                 system(systemPlugin->QueryInterface<System>()),
                 configure(systemPlugin->QueryInterface<ISystemConfigure>()),
+                runnable(systemPlugin->QueryInterface<ISystemRunnable>()),
                 preupdate(systemPlugin->QueryInterface<ISystemPreUpdate>()),
                 update(systemPlugin->QueryInterface<ISystemUpdate>()),
                 postupdate(systemPlugin->QueryInterface<ISystemPostUpdate>())
@@ -76,6 +77,10 @@ namespace ignition
       /// \brief Access this system via the ISystemConfigure interface
       /// Will be nullptr if the System doesn't implement this interface.
       public: ISystemConfigure *configure = nullptr;
+
+      /// \brief Access this system via the ISystemRunnable interface
+      /// Will be nullptr if the System doesn't implement this interface.
+      public: ISystemRunnable *runnable = nullptr;
 
       /// \brief Access this system via the ISystemPreUpdate interface
       /// Will be nullptr if the System doesn't implement this interface.
@@ -121,6 +126,12 @@ namespace ignition
 
       /// \brief Configure all the systems that implement Configure interface.
       public: void ConfigureSystems();
+
+      /// \brief Run all the systems that implement Runnable interface.
+      public: void RunSystems();
+
+      /// \brief Stop all the systems that implement Runnable interface.
+      public: void StopSystems();
 
       /// \brief Publish current world statistics.
       public: void PublishStats();
@@ -250,6 +261,9 @@ namespace ignition
 
       /// \brief Systems implementing Configure
       private: std::vector<ISystemConfigure*> systemsConfigure;
+
+      /// \brief Systems implementing Runnable
+      private: std::vector<ISystemRunnable*> systemsRunnable;
 
       /// \brief Systems implementing PreUpdate
       private: std::vector<ISystemPreUpdate*> systemsPreupdate;

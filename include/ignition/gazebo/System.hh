@@ -72,6 +72,14 @@ namespace ignition
                                      EventManager* _eventMgr) = 0;
     };
 
+    /// \class ISystemRunnable ISystem.hh ignition/gazebo/System.hh
+    /// \brief Interface for a system that uses background threads/tasks
+    class IGNITION_GAZEBO_VISIBLE ISystemRunnable {
+      public: virtual void Run() = 0;
+      public: virtual void Stop() = 0;
+      public: virtual bool Running() const = 0;
+    };
+
     /// \class ISystemPreUpdate ISystem.hh ignition/gazebo/System.hh
     /// \brief Interface for a system that uses the PreUpdate phase
     class IGNITION_GAZEBO_VISIBLE ISystemPreUpdate {

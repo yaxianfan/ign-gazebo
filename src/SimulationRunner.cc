@@ -116,6 +116,8 @@ SimulationRunner::SimulationRunner(const sdf::World *_world,
   this->node.Advertise("/world/" + this->worldName + "/control",
         &SimulationRunner::OnWorldControl, this);
 
+  this->RunSystems();
+
   ignmsg << "World [" << _world->Name() << "] initialized with ["
          << physics->Name() << "] physics profile." << std::endl;
 }
@@ -239,6 +241,22 @@ void SimulationRunner::ConfigureSystems()
   for (auto& system : this->systemsConfigure)
   {
     system->Configure(this->entityCompMgr, &this->eventMgr);
+  }
+}
+
+/////////////////////////////////////////////////
+void SimulationRunner::RunSystems()
+{
+  for (auto& system : this->systemsRunnable) {
+    system->Run();
+  }
+}
+
+/////////////////////////////////////////////////
+void SimulationRunner::StopSystems()
+{
+  for (auto& system : this->systemsRunnable) {
+    system->Stop();
   }
 }
 

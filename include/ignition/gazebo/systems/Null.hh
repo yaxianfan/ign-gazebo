@@ -34,6 +34,7 @@ namespace systems
   class IGNITION_GAZEBO_VISIBLE Null:
     public System,
     public ISystemConfigure,
+    public ISystemRunnable,
     public ISystemPreUpdate,
     public ISystemUpdate,
     public ISystemPostUpdate
@@ -50,6 +51,15 @@ namespace systems
     /// Documentation inherited
     public: void Configure(EntityComponentManager &_ecm,
                            EventManager* _eventMgr) override;
+
+    /// Documentation inherited
+    public: void Run() override;
+
+    /// Documentation inherited
+    public: void Stop() override;
+
+    /// Documentation inherited
+    public: bool Running() const override;
 
     /// Documentation inherited
     public: void PreUpdate(const UpdateInfo &_info,
