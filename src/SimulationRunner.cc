@@ -282,6 +282,7 @@ void SimulationRunner::UpdateSystems()
 void SimulationRunner::Stop()
 {
   this->running = false;
+  this->StopSystems();
 }
 
 /////////////////////////////////////////////////
@@ -293,17 +294,18 @@ bool SimulationRunner::Run(const uint64_t _iterations)
   // \todo(nkoenig) We should implement the two-phase update detailed
   // in the design.
 
-  // Keep track of wall clock time. Only start the realTimeWatch if this
-  // runner is not paused.
-  if (!this->currentInfo.paused)
-    this->realTimeWatch.Start();
-
-  // Variables for time keeping.
-  std::chrono::steady_clock::time_point startTime;
-  std::chrono::steady_clock::duration sleepTime;
-  std::chrono::steady_clock::duration actualSleep;
-
   this->running = true;
+
+  if (!this->paused) {
+    // Keep track of wall clock time. Only start the realTimeWatch if this
+    // runner is not paused.
+    this->realTimeWatch.Start();
+  }
+
+    // Variables for time keeping.
+    std::chrono::steady_clock::duration sleepTime;
+    std::chrono::steady_clock::time_point startTime;
+    std::chrono::steady_clock::duration actualSleep;
 
   // Execute all the systems until we are told to stop, or the number of
   // iterations is reached.
@@ -334,6 +336,7 @@ bool SimulationRunner::Run(const uint64_t _iterations)
       std::chrono::duration_cast<std::chrono::nanoseconds>(
           (actualSleep - sleepTime) * 0.01 + this->sleepOffset * 0.99);
 
+
     // Update time information. This will update the iteration count, RTF,
     // and other values.
     this->UpdateCurrentInfo();
@@ -344,25 +347,22 @@ bool SimulationRunner::Run(const uint64_t _iterations)
     // Record when the update step starts.
     this->prevUpdateRealTime = std::chrono::steady_clock::now();
 
-    // Update all the systems.
-    this->UpdateSystems();
+    if (!this->paused) {
+      // Update all the systems.
+      this->UpdateSystems();
 
-    if (!this->Paused() && this->pendingSimIterations > 0)
-    {
-      // Decrement the pending sim iterations, if there are any.
-      --this->pendingSimIterations;
-      // If this is was the last sim iterations, then re-pause simulation.
-      if (this->pendingSimIterations <= 0)
+      if (this->pendingSimIterations > 0)
       {
-        this->SetPaused(true);
+        --pendingSimIterations;
+        if (this->pendingSimIterations <= 0)
+        {
+          this->SetPaused(true);
+        }
       }
     }
 
     // Process world control messages.
     this->ProcessMessages();
-
-    // Process entity erasures.
-    this->entityCompMgr.ProcessEraseEntityRequests();
   }
 
   this->running = false;
@@ -577,6 +577,8 @@ void SimulationRunner::SetPaused(const bool _paused)
     else
       this->realTimeWatch.Start();
   }
+
+  this->paused = _paused;
 
   // Store the pause state
   this->currentInfo.paused = _paused;
