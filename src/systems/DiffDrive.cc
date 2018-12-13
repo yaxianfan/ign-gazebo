@@ -1,0 +1,191 @@
+/*
+ * Copyright (C) 2018 Open Source Robotics Foundation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+#include <ignition/msgs/pose.pb.h>
+#include <ignition/common/Time.hh>
+#include <ignition/math/Pose3.hh>
+#include <ignition/plugin/RegisterMore.hh>
+#include <ignition/transport/Node.hh>
+
+#include "ignition/gazebo/components/Joint.hh"
+#include "ignition/gazebo/components/Name.hh"
+#include "ignition/gazebo/components/Pose.hh"
+#include "ignition/gazebo/components/ParentEntity.hh"
+#include "ignition/gazebo/components/ScalarVelocity.hh"
+#include "ignition/gazebo/systems/DiffDrive.hh"
+
+using namespace ignition;
+using namespace gazebo;
+using namespace systems;
+
+class ignition::gazebo::systems::DiffDrivePrivate
+{
+  /// \brief Callback for velocity subscription
+  /// \param[in] _msg Velocity message
+  public: void OnCmdVel(const ignition::msgs::Pose &_msg);
+
+  /// \brief Ignition communication node.
+  public: transport::Node node;
+
+  /// \brief EntityId of the left joint
+  public: EntityId leftJointId = kNullEntity;
+
+  /// \brief EntityId of the right joint
+  public: EntityId rightJointId = kNullEntity;
+
+  /// \brief Name of left joint
+  public: std::string leftJointName = "left_joint";
+
+  /// \brief Name of right joint
+  public: std::string rightJointName = "right_joint";
+
+  /// \brief Calculated speed of left joint
+  public: double leftJointSpeed{0};
+
+  /// \brief Calculated speed of right joint
+  public: double rightJointSpeed{0};
+
+  /// \brief Distance between wheels
+  public: double wheelSeparation{1.0};
+
+  /// \brief Wheel radius
+  public: double wheelRadius{0.2};
+
+  /// \brief Entity id of model which this plugin is attached to.
+  public: EntityId modelId{kNullEntity};
+};
+
+//////////////////////////////////////////////////
+DiffDrive::DiffDrive()
+  : dataPtr(std::make_unique<DiffDrivePrivate>())
+{
+  this->dataPtr->node.Subscribe("/cmd_vel",
+                                &DiffDrivePrivate::OnCmdVel,
+                                this->dataPtr.get());
+}
+
+//////////////////////////////////////////////////
+void DiffDrive::Configure(const EntityId &_id,
+    const std::shared_ptr<const sdf::Element> &_sdf,
+    EntityComponentManager &/*_ecm*/,
+    EventManager &/*_eventMgr*/)
+{
+  this->dataPtr->modelId = _id;
+
+  this->dataPtr->leftJointName = _sdf->Get<std::string>("left_joint",
+      this->dataPtr->leftJointName).first;
+  this->dataPtr->rightJointName = _sdf->Get<std::string>("right_joint",
+      this->dataPtr->rightJointName).first;
+  this->dataPtr->wheelSeparation = _sdf->Get<double>("wheel_separation",
+      this->dataPtr->wheelSeparation).first;
+  this->dataPtr->wheelRadius = _sdf->Get<double>("wheel_radius",
+      this->dataPtr->wheelRadius).first;
+}
+
+//////////////////////////////////////////////////
+void DiffDrive::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
+    ignition::gazebo::EntityComponentManager &_ecm)
+{
+  // If the joints haven't been identified yet, look for them
+  if (this->dataPtr->leftJointId == kNullEntity ||
+      this->dataPtr->rightJointId == kNullEntity)
+  {
+    _ecm.Each<components::Joint,
+              components::ParentEntity,
+              components::Name>(
+        [&](const EntityId &_entity,
+            const components::Joint *,
+            const components::ParentEntity *_parent,
+            const components::Name *_name) -> bool
+        {
+          if (_parent->Data() != this->dataPtr->modelId)
+          {
+            return true;
+          }
+
+          if (this->dataPtr->leftJointName == _name->Data())
+          {
+            this->dataPtr->leftJointId = _entity;
+            igndbg << "Found joint [" << this->dataPtr->leftJointName << "] = ["
+                   << this->dataPtr->leftJointId << "]" << std::endl;
+          }
+          else if (this->dataPtr->rightJointName == _name->Data())
+          {
+            this->dataPtr->rightJointId = _entity;
+            igndbg << "Found joint [" << this->dataPtr->rightJointName
+                   << "] = [" << this->dataPtr->rightJointId << "]"
+                   << std::endl;
+          }
+
+          return this->dataPtr->leftJointId != kNullEntity ||
+                 this->dataPtr->rightJointId != kNullEntity;
+        });
+  }
+
+  if (this->dataPtr->leftJointId == kNullEntity ||
+      this->dataPtr->rightJointId == kNullEntity)
+    return;
+
+  // Nothing left to do if paused.
+  if (_info.paused)
+    return;
+
+  // Update left wheel
+  auto leftVel =
+      _ecm.Component<components::ScalarVelocity>(this->dataPtr->leftJointId);
+
+  if (leftVel == nullptr)
+  {
+    _ecm.CreateComponent(this->dataPtr->leftJointId,
+        components::ScalarVelocity(this->dataPtr->leftJointSpeed));
+  }
+  else
+  {
+    *leftVel = components::ScalarVelocity(this->dataPtr->leftJointSpeed);
+  }
+
+  // Update right wheel
+  auto rightVel =
+      _ecm.Component<components::ScalarVelocity>(this->dataPtr->rightJointId);
+
+  if (rightVel == nullptr)
+  {
+    _ecm.CreateComponent(this->dataPtr->rightJointId,
+        components::ScalarVelocity(this->dataPtr->rightJointSpeed));
+  }
+  else
+  {
+    *rightVel = components::ScalarVelocity(this->dataPtr->rightJointSpeed);
+  }
+}
+
+//////////////////////////////////////////////////
+void DiffDrivePrivate::OnCmdVel(const msgs::Pose &_msg)
+{
+  auto linVel = _msg.position().x();
+  auto angVel =  msgs::Convert(_msg.orientation()).Euler().Z();
+
+  this->leftJointSpeed =
+      (linVel + angVel * this->wheelSeparation / 2.0) / this->wheelRadius;
+  this->rightJointSpeed =
+    (linVel - angVel * this->wheelSeparation / 2.0) / this->wheelRadius;
+}
+
+IGNITION_ADD_PLUGIN(ignition::gazebo::systems::DiffDrive,
+                    ignition::gazebo::System,
+                    DiffDrive::ISystemConfigure,
+                    DiffDrive::ISystemPreUpdate)
+
