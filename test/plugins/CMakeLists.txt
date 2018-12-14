@@ -15,8 +15,12 @@ set (plugins
   TestSystem
   TestWorldSystem
   MockSystem
+  Move3dSystem
 )
 
+set(IGNITION_GAZEBO_PLUGIN_INSTALL_DIR
+  ${CMAKE_INSTALL_PREFIX}/${IGN_LIB_INSTALL_DIR}/ign-${IGN_DESIGNATION}-${PROJECT_VERSION_MAJOR}/plugins
+)
 # Plugin shared libraries
 foreach (src ${plugins})
   add_library(${src} SHARED ${src}.cc)

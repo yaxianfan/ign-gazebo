@@ -48,6 +48,7 @@ using StringSet = std::unordered_set<std::string>;
 //////////////////////////////////////////////////
 SimulationRunner::SimulationRunner(const sdf::World *_world,
                                    const SystemLoaderPtr &_systemLoader)
+    : sdfWorld(_world)
 {
   // Keep world name
   this->worldName = _world->Name();
@@ -99,8 +100,13 @@ SimulationRunner::SimulationRunner(const sdf::World *_world,
   this->updatePeriod = std::chrono::nanoseconds(
       static_cast<int>(this->stepSize.count() / desiredRtf));
 
-  // Create entities and components
-  this->CreateEntities(_world);
+  // Create the level manager
+  this->levelMgr =
+      std::make_unique<LevelManager>(this->entityCompMgr, this->sdfWorld);
+  // Read level info and load the active levels
+  this->levelMgr->ReadLevelPerformerInfo();
+  this->levelMgr->CreatePerformers();
+  this->UpdateLevels();
 
   this->pauseConn = this->eventMgr.Connect<events::Pause>(
       std::bind(&SimulationRunner::SetPaused, this, std::placeholders::_1));
@@ -244,6 +250,14 @@ void SimulationRunner::UpdateSystems()
 }
 
 /////////////////////////////////////////////////
+void SimulationRunner::UpdateLevels()
+{
+  this->levelMgr->UpdateLevels();
+  this->levelMgr->LoadActiveLevels();
+  this->levelMgr->UnloadInactiveLevels();
+}
+
+/////////////////////////////////////////////////
 void SimulationRunner::Stop()
 {
   this->running = false;
@@ -311,6 +325,8 @@ bool SimulationRunner::Run(const uint64_t _iterations)
 
     // Update all the systems.
     this->UpdateSystems();
+
+    this->UpdateLevels();
 
     if (!this->Paused() && this->pendingSimIterations > 0)
     {

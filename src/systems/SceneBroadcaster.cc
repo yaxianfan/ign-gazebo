@@ -23,12 +23,14 @@
 #include "ignition/gazebo/components/Geometry.hh"
 #include "ignition/gazebo/components/Light.hh"
 #include "ignition/gazebo/components/Link.hh"
+#include "ignition/gazebo/components/Level.hh"
 #include "ignition/gazebo/components/Material.hh"
 #include "ignition/gazebo/components/Model.hh"
 #include "ignition/gazebo/components/Name.hh"
 #include "ignition/gazebo/components/ParentEntity.hh"
 #include "ignition/gazebo/components/Pose.hh"
 #include "ignition/gazebo/components/Visual.hh"
+#include "ignition/gazebo/components/RenderState.hh"
 #include "ignition/gazebo/components/World.hh"
 #include "ignition/gazebo/Conversions.hh"
 #include "ignition/gazebo/EntityComponentManager.hh"
@@ -119,6 +121,7 @@ void AddModels(T _msg,
     if (!modelMsg)
       continue;
 
+    std::cout << "Adding model: " << modelMsg->name() << std::endl;
     // Nested models
     AddModels(modelMsg, vertex.second.get().Id(), _graph);
 
@@ -152,6 +155,9 @@ class ignition::gazebo::systems::SceneBroadcasterPrivate
   /// \brief Pose publisher.
   public: transport::Node::Publisher posePub;
 
+  /// \brief Visiblity publisher.
+  public: transport::Node::Publisher visPub;
+
   /// \brief Graph containing latest information from entities.
   public: math::graph::DirectedGraph<
       std::shared_ptr<google::protobuf::Message>, bool> sceneGraph;
@@ -162,6 +168,9 @@ class ignition::gazebo::systems::SceneBroadcasterPrivate
 
   /// \brief Protects scene graph.
   public: std::mutex graphMutex;
+
+  /// \brief Counter used to run update in intervals
+  public: uint64_t updateCounter{0};
 };
 
 //////////////////////////////////////////////////
@@ -179,8 +188,14 @@ SceneBroadcaster::~SceneBroadcaster()
 void SceneBroadcaster::PostUpdate(const UpdateInfo &/*_info*/,
     const EntityComponentManager &_manager)
 {
+  if ((this->dataPtr->updateCounter++)%10 != 0)
+  {
+    // don't run the update
+    return;
+  }
   // Populate pose message
   msgs::Pose_V poseMsg;
+  msgs::UInt32_V visMsg;
 
   {
     std::lock_guard<std::mutex> lock(this->dataPtr->graphMutex);
@@ -232,6 +247,40 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &/*_info*/,
       return;
     }
 
+    // Levels
+    _manager.Each<components::Level,
+                  components::Name,
+                  components::ParentEntity,
+                  components::Pose>(
+      [&](const EntityId &_entity,
+          const components::Level * ,
+          const components::Name *_nameComp,
+          const components::ParentEntity *_parentComp,
+          const components::Pose *_poseComp)->bool
+      {
+        // use a model for level visualization. May need to change later
+        auto levelMsg = std::make_shared<msgs::Model>();
+        levelMsg->set_id(_entity);
+        levelMsg->set_name(_nameComp->Data());
+        levelMsg->mutable_pose()->CopyFrom(msgs::Convert(
+            _poseComp->Data()));
+
+        // Add to graph
+        this->dataPtr->sceneGraph.AddVertex(
+            _nameComp->Data(), levelMsg, _entity);
+        this->dataPtr->sceneGraph.AddEdge({_parentComp->Data(), _entity}, true);
+
+        // Add to pose msg
+        auto pose = poseMsg.add_pose();
+        msgs::Set(pose, _poseComp->Data());
+        pose->set_name(_nameComp->Data());
+        pose->set_id(_entity);
+
+        // add to visibility msg
+        visMsg.add_data(_entity);
+        return true;
+      });
+
     // Models
     _manager.Each<components::Model,
                   components::Name,
@@ -243,6 +292,11 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &/*_info*/,
           const components::ParentEntity *_parentComp,
           const components::Pose *_poseComp)->bool
       {
+        // see if the model this visual belongs should be rendered
+        const auto renderState =
+          _manager.Component<components::RenderState>(_entity);
+
+
         auto modelMsg = std::make_shared<msgs::Model>();
         modelMsg->set_id(_entity);
         modelMsg->set_name(_nameComp->Data());
@@ -259,6 +313,10 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &/*_info*/,
         msgs::Set(pose, _poseComp->Data());
         pose->set_name(_nameComp->Data());
         pose->set_id(_entity);
+
+        // add to visibility msg
+        if (renderState && renderState->Data())
+          visMsg.add_data(_entity);
         return true;
       });
 
@@ -273,6 +331,11 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &/*_info*/,
           const components::ParentEntity *_parentComp,
           const components::Pose *_poseComp)->bool
       {
+        const auto &parentVertex =
+          this->dataPtr->sceneGraph.VertexFromId(_parentComp->Data());
+        if (!parentVertex.Valid())
+          return true;
+
         auto linkMsg = std::make_shared<msgs::Link>();
         linkMsg->set_id(_entity);
         linkMsg->set_name(_nameComp->Data());
@@ -289,6 +352,7 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &/*_info*/,
         msgs::Set(pose, _poseComp->Data());
         pose->set_name(_nameComp->Data());
         pose->set_id(_entity);
+        // visMsg.add_data(_entity);
         return true;
       });
 
@@ -303,6 +367,11 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &/*_info*/,
           const components::ParentEntity *_parentComp,
           const components::Pose *_poseComp)->bool
       {
+        const auto &parentVertex =
+          this->dataPtr->sceneGraph.VertexFromId(_parentComp->Data());
+        if (!parentVertex.Valid())
+          return true;
+
         auto visualMsg = std::make_shared<msgs::Visual>();
         visualMsg->set_id(_entity);
         visualMsg->set_parent_id(_parentComp->Data());
@@ -337,6 +406,7 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &/*_info*/,
         msgs::Set(pose, _poseComp->Data());
         pose->set_name(_nameComp->Data());
         pose->set_id(_entity);
+        // visMsg.add_data(_entity);
         return true;
       });
 
@@ -373,6 +443,7 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &/*_info*/,
       });
   }
   this->dataPtr->posePub.Publish(poseMsg);
+  this->dataPtr->visPub.Publish(visMsg);
 }
 
 //////////////////////////////////////////////////
@@ -397,11 +468,21 @@ void SceneBroadcasterPrivate::SetupTransport(const std::string &_worldName)
   // Pose info publisher
   std::string topic{"/world/" + _worldName + "/pose/info"};
 
-  transport::AdvertiseMessageOptions advertOpts;
-  advertOpts.SetMsgsPerSec(60);
-  this->posePub = this->node.Advertise<msgs::Pose_V>(topic, advertOpts);
+  // Pose info publisher
+  std::string visTopic{"/world/" + _worldName + "/visibility/info"};
 
-  ignmsg << "Publishing pose messages on [" << topic << "]" << std::endl;
+  {
+    transport::AdvertiseMessageOptions advertOpts;
+    advertOpts.SetMsgsPerSec(60);
+    this->posePub = this->node.Advertise<msgs::Pose_V>(topic, advertOpts);
+    ignmsg << "Publishing pose messages on [" << topic << "]" << std::endl;
+  }
+  {
+    transport::AdvertiseMessageOptions advertOpts;
+    advertOpts.SetMsgsPerSec(60);
+    this->visPub = this->node.Advertise<msgs::UInt32_V>(visTopic, advertOpts);
+    ignmsg << "Publishing pose messages on [" << visTopic << "]" << std::endl;
+  }
 }
 
 //////////////////////////////////////////////////

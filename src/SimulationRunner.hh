@@ -49,6 +49,8 @@
 #include "ignition/gazebo/SystemPluginPtr.hh"
 #include "ignition/gazebo/Types.hh"
 
+#include "LevelManager.hh"
+
 using namespace std::chrono_literals;
 
 namespace ignition
@@ -122,12 +124,14 @@ namespace ignition
       /// \brief Update all the systems
       public: void UpdateSystems();
 
+      /// \brief Update all levels
+      public: void UpdateLevels();
+
       /// \brief Publish current world statistics.
       public: void PublishStats();
 
       /// \brief Create all entities that exist in the sdf::World object and
       /// load their plugins.
-      /// \param[in] _world SDF world object.
       /// \return Id of world entity.
       public: EntityId CreateEntities(const sdf::World *_world);
 
@@ -309,6 +313,9 @@ namespace ignition
       /// \brief Manager of all components.
       private: EntityComponentManager entityCompMgr;
 
+      /// \brief Manager of all levels.
+      private: std::unique_ptr<LevelManager> levelMgr;
+
       /// \brief A pool of worker threads.
       private: common::WorkerPool workerPool{2};
 
@@ -350,6 +357,9 @@ namespace ignition
       /// \brief Connection to the pause event.
       private: ignition::common::ConnectionPtr pauseConn;
 
+      /// \brief Pointer to the sdf::World object of this runner
+      private: const sdf::World *sdfWorld;
+
       /// \brief The real time factor calculated based on sim and real time
       /// averages.
       private: double realTimeFactor{0.0};
@@ -366,6 +376,8 @@ namespace ignition
 
       /// \brief Mutex to protect message buffers.
       private: std::mutex msgBufferMutex;
+
+      friend class LevelManager;
     };
     }
   }
