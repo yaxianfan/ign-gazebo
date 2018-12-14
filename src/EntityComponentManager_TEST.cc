@@ -30,10 +30,11 @@ class EntityComponentManagerFixture : public ::testing::TestWithParam<int>
 
 class EntityCompMgrTest : public gazebo::EntityComponentManager
 {
-  public: void ProcessEntityErasures()
-          {
-            this->ProcessEraseEntityRequests();
-          }
+  public: void ProcessAllRequests()
+  {
+    this->ProcessUpdateComponentRequests();
+    this->ProcessEraseEntityRequests();
+  }
 };
 
 /////////////////////////////////////////////////
@@ -310,7 +311,7 @@ TEST_P(EntityComponentManagerFixture, EntitiesAndComponents)
   // Erase all entities
   manager.RequestEraseEntities();
   EXPECT_EQ(3u, manager.EntityCount());
-  manager.ProcessEntityErasures();
+  manager.ProcessAllRequests();
 
   EXPECT_EQ(0u, manager.EntityCount());
   EXPECT_FALSE(manager.HasEntity(entityId));
@@ -387,6 +388,117 @@ TEST_P(EntityComponentManagerFixture, ComponentValues)
     const auto *value = manager.Component<double>(999);
     ASSERT_EQ(nullptr, value);
   }
+}
+
+//////////////////////////////////////////////////
+TEST_P(EntityComponentManagerFixture, UpdateComponent)
+{
+  ignition::common::Console::SetVerbosity(4);
+  EntityCompMgrTest manager;
+
+  // Create some entities
+  gazebo::EntityId e1 = manager.CreateEntity();
+  gazebo::EntityId e2 = manager.CreateEntity();
+  EXPECT_EQ(2u, manager.EntityCount());
+
+  // Try writing before any components are added
+  EXPECT_FALSE(manager.UpdateComponent<int>(e1, 123));
+  EXPECT_FALSE(manager.UpdateComponent<double>(e2, 0.123));
+
+  // Add components of different types to each entity
+  manager.CreateComponent<int>(e1, 123);
+  manager.CreateComponent<double>(e1, 0.123);
+
+  // Try writing a component that doesn't exist
+  EXPECT_FALSE(manager.UpdateComponent<double>(e2, 0.123));
+
+  // Check int component update
+  {
+    const auto *value = manager.Component<int>(e1);
+    ASSERT_NE(nullptr, value);
+    EXPECT_EQ(123, *value);
+    // now change the value
+    const bool result = manager.UpdateComponent<int>(e1, 246);
+    EXPECT_TRUE(result);
+    const auto *newValue = manager.Component<int>(e1);
+    EXPECT_EQ(246, *newValue);
+  }
+
+  // Check double component update
+  {
+    const auto *value = manager.Component<double>(e1);
+    ASSERT_NE(nullptr, value);
+    EXPECT_DOUBLE_EQ(0.123, *value);
+    // now change the value
+    const bool result = manager.UpdateComponent<double>(e1, 1.23);
+    EXPECT_TRUE(result);
+    const auto *newValue = manager.Component<double>(e1);
+    EXPECT_DOUBLE_EQ(1.23, *newValue);
+  }
+}
+
+//////////////////////////////////////////////////
+TEST_P(EntityComponentManagerFixture, RequestUpdateComponent)
+{
+  ignition::common::Console::SetVerbosity(4);
+  EntityCompMgrTest manager;
+
+  // Create some entities
+  gazebo::EntityId e1 = manager.CreateEntity();
+  EXPECT_EQ(1u, manager.EntityCount());
+
+  // Add components of different types to each entity
+  manager.CreateComponent<int>(e1, 123);
+  manager.CreateComponent<double>(e1, 0.123);
+
+  // Check deferred component updates
+  {
+    const auto *value = manager.Component<int>(e1);
+    ASSERT_NE(nullptr, value);
+    EXPECT_EQ(123, *value);
+    // now change the value
+    const bool result = manager.RequestUpdateComponent<int>(e1, 246);
+    EXPECT_TRUE(result);
+    const auto *newValue = manager.Component<int>(e1);
+    // value shouldn't change
+    EXPECT_EQ(123, *newValue);
+
+    manager.ProcessAllRequests();
+    const auto *finalValue = manager.Component<int>(e1);
+    EXPECT_EQ(246, *finalValue);
+  }
+
+  // make sure that the request is only valid for one cycle
+  {
+    manager.UpdateComponent<int>(e1, 123);
+    manager.ProcessAllRequests();
+    const auto *value = manager.Component<int>(e1);
+    EXPECT_EQ(123, *value);
+  }
+}
+
+//////////////////////////////////////////////////
+TEST_P(EntityComponentManagerFixture, UpdateComponentRemoved)
+{
+  ignition::common::Console::SetVerbosity(4);
+  EntityCompMgrTest manager;
+
+  // Create some entities
+  gazebo::EntityId e1 = manager.CreateEntity();
+  EXPECT_EQ(1u, manager.EntityCount());
+
+  // Add component
+  auto e1comp = manager.CreateComponent<int>(e1, 123);
+  manager.RemoveComponent(e1, e1comp);
+  EXPECT_EQ(nullptr, manager.Component<int>(e1));
+
+  // None of the update functions should succeed
+  EXPECT_FALSE(manager.UpdateComponent<int>(e1, 200));
+  EXPECT_FALSE(manager.RequestUpdateComponent<int>(e1, 200));
+
+  // Processing update requests should not recreate the component
+  manager.ProcessAllRequests();
+  EXPECT_EQ(nullptr, manager.Component<int>(e1));
 }
 
 //////////////////////////////////////////////////
@@ -740,7 +852,7 @@ TEST_P(EntityComponentManagerFixture, ViewsEraseEntities)
       EXPECT_EQ(0, count);
 
     manager.RequestEraseEntities();
-    manager.ProcessEntityErasures();
+    manager.ProcessAllRequests();
   }
 }
 
@@ -759,7 +871,7 @@ TEST_P(EntityComponentManagerFixture, EraseEntity)
   // Delete an Entity
   manager.RequestEraseEntity(eDouble);
   EXPECT_EQ(3u, manager.EntityCount());
-  manager.ProcessEntityErasures();
+  manager.ProcessAllRequests();
   EXPECT_EQ(2u, manager.EntityCount());
 
   // Creating an new entity should reuse the previously deleted entity.
@@ -770,25 +882,25 @@ TEST_P(EntityComponentManagerFixture, EraseEntity)
   // Can not delete an invalid entity.
   manager.RequestEraseEntity(5);
   EXPECT_EQ(3u, manager.EntityCount());
-  manager.ProcessEntityErasures();
+  manager.ProcessAllRequests();
   EXPECT_EQ(3u, manager.EntityCount());
 
   // Delete another
   manager.RequestEraseEntity(0);
   EXPECT_EQ(3u, manager.EntityCount());
-  manager.ProcessEntityErasures();
+  manager.ProcessAllRequests();
   EXPECT_EQ(2u, manager.EntityCount());
 
   // Delete another
   manager.RequestEraseEntity(1);
   EXPECT_EQ(2u, manager.EntityCount());
-  manager.ProcessEntityErasures();
+  manager.ProcessAllRequests();
   EXPECT_EQ(1u, manager.EntityCount());
 
   // Delete last
   manager.RequestEraseEntity(2);
   EXPECT_EQ(1u, manager.EntityCount());
-  manager.ProcessEntityErasures();
+  manager.ProcessAllRequests();
   EXPECT_EQ(0u, manager.EntityCount());
 
   // Recreate entities
@@ -838,7 +950,7 @@ TEST_P(EntityComponentManagerFixture, ViewsEraseEntity)
 
   // Erase an entity.
   manager.RequestEraseEntity(eIntDouble);
-  manager.ProcessEntityErasures();
+  manager.ProcessAllRequests();
 
   count = 0;
   manager.Each<int> ([&](const ignition::gazebo::EntityId &_entity,

@@ -17,6 +17,7 @@
 #ifndef IGNITION_GAZEBO_ENTITYCOMPONENTMANAGER_HH_
 #define IGNITION_GAZEBO_ENTITYCOMPONENTMANAGER_HH_
 
+#include <any>
 #include <map>
 #include <memory>
 #include <set>
@@ -127,6 +128,9 @@ namespace ignition
       /// \brief Constructor
       public: ComponentStorageBase() = default;
 
+      /// \brief Destructor
+      public: virtual ~ComponentStorageBase() = default;
+
       /// \brief Create a new component using the provided data.
       /// \param[in] _data Data used to construct the component.
       /// \return Id of the new component, and whether the components array
@@ -155,12 +159,16 @@ namespace ignition
       /// could not be found.
       public: virtual void *Component(const ComponentId _id) = 0;
 
+      /// \brief Update a component with a new value
+      /// \param[in] _id Id of the component to update.
+      /// \param[in] _value The new value of the component
+      /// \return True if the component was found and updated.
+      public: virtual bool Update(const ComponentId _id,
+                                  const std::any &_value) = 0;
+
       /// \brief Get the first component.
       /// \return First component or nullptr if there are no components.
       public: virtual void *First() = 0;
-
-      /// \brief Mutex used to prevent data corruption.
-      protected: mutable std::mutex mutex;
     };
 
     /// \brief Templated implementation of component storage.
@@ -187,8 +195,6 @@ namespace ignition
       // Documentation inherited.
       public: bool Remove(const ComponentId _id) override final
       {
-        std::lock_guard<std::mutex> lock(this->mutex);
-
         // Get an iterator to the component that should be removed.
         std::map<ComponentId, int>::iterator iter = this->idMap.find(_id);
 
@@ -246,7 +252,6 @@ namespace ignition
           expanded = true;
         }
 
-        std::lock_guard<std::mutex> lock(this->mutex);
         result = this->idCounter++;
         this->idMap[result] = this->components.size();
         // Copy the component
@@ -266,8 +271,6 @@ namespace ignition
 
       public: void *Component(const ComponentId _id) override final
       {
-        std::lock_guard<std::mutex> lock(this->mutex);
-
         std::map<ComponentId, int>::const_iterator iter = this->idMap.find(_id);
 
         if (iter != this->idMap.end())
@@ -280,10 +283,27 @@ namespace ignition
       // Documentation inherited.
       public: void *First() override final
       {
-        std::lock_guard<std::mutex> lock(this->mutex);
         if (!this->components.empty())
           return static_cast<void *>(&this->components[0]);
         return nullptr;
+      }
+
+      // Documentation inherited.
+      public: bool Update(const ComponentId _id, const std::any &_value)
+      {
+        std::map<ComponentId, int>::const_iterator iter = this->idMap.find(_id);
+
+        // Check if the component is still there. It might have been removed, in
+        // which case, we do nothing.
+        if (iter != this->idMap.end())
+        {
+          // copy the value
+          this->components.at(iter->second) =
+              std::any_cast<const ComponentTypeT>(_value);
+          return true;
+        }
+
+        return false;
       }
 
       /// \brief The id counter is used to get unique ids within this
@@ -422,19 +442,6 @@ namespace ignition
             this->ComponentImplementation<ComponentTypeT>(_id));
       }
 
-      /// \brief Get a mutable component assigned to an entity based on a
-      /// component type.
-      /// \param[in] _id Id of the entity.
-      /// \return The component of the specified type assigned to specified
-      /// Entity, or nullptr if the component could not be found.
-      public: template<typename ComponentTypeT>
-              ComponentTypeT *Component(const EntityId _id)
-      {
-        std::lock_guard<std::mutex> lock(this->entityMutex);
-        return static_cast<ComponentTypeT *>(
-            this->ComponentImplementation<ComponentTypeT>(_id));
-      }
-
       /// \brief Get a component based on a key.
       /// \param[in] _key A key that uniquely identifies a component.
       /// \return The component associated with the key, or nullptr if the
@@ -447,18 +454,6 @@ namespace ignition
             this->ComponentImplementation(_key));
       }
 
-      /// \brief Get a mutable component based on a key.
-      /// \param[in] _key A key that uniquely identifies a component.
-      /// \return The component associated with the key, or nullptr if the
-      /// component could not be found.
-      public: template<typename ComponentTypeT>
-              ComponentTypeT *Component(const ComponentKey &_key)
-      {
-        std::lock_guard<std::mutex> lock(this->entityMutex);
-        return static_cast<ComponentTypeT *>(
-            this->ComponentImplementation(_key));
-      }
-
       /// \brief The first component instance of the specified type.
       /// \return First component instance of the specified type, or nullptr
       /// if the type does not exist.
@@ -467,17 +462,6 @@ namespace ignition
       {
         std::lock_guard<std::mutex> lock(this->entityMutex);
         return static_cast<const ComponentTypeT *>(
-            this->First(this->ComponentType<ComponentTypeT>()));
-      }
-
-      /// \brief The first component instance of the specified type.
-      /// \return First component instance of the specified type, or nullptr
-      /// if the type does not exist.
-      public: template<typename ComponentTypeT>
-              ComponentTypeT *First()
-      {
-        std::lock_guard<std::mutex> lock(this->entityMutex);
-        return static_cast<ComponentTypeT *>(
             this->First(this->ComponentType<ComponentTypeT>()));
       }
 
@@ -529,47 +513,6 @@ namespace ignition
         }
       }
 
-      /// \brief A version of Each() that doesn't use a cache. The cached
-      /// version, Each(), is preferred.
-      /// Get all entities which contain given component types, as well
-      /// as the mutable components.
-      /// \param[in] _f Callback function to be called for each matching entity.
-      /// The function parameter are all the desired component types, in the
-      /// order they're listed on the template. The callback function can
-      /// return false to stop subsequent calls to the callback, otherwise
-      /// a true value should be returned.
-      /// \tparam ComponentTypeTs All the desired mutable component types.
-      /// \warning This function should not be called outside of System's
-      /// PreUpdate, Update, or PostUpdate callbacks.
-      public: template<typename ...ComponentTypeTs>
-              void EachNoCache(typename identity<std::function<
-                  bool(const EntityId &_entity,
-                       ComponentTypeTs *...)>>::type _f)
-      {
-        // Need a unique_lock instead of a lock_guard because we want to unlock
-        // the mutex before calling _f
-        std::unique_lock<std::mutex> uniqLock(this->entityMutex);
-        for (const Entity &entity : this->Entities())
-        {
-          auto types = std::set<ComponentTypeId>{
-              this->ComponentType<ComponentTypeTs>()...};
-
-          if (this->EntityMatchesImpl(entity.Id(), types))
-          {
-            // unlock before calling _f
-            uniqLock.unlock();
-            if (!_f(entity.Id(),
-                    static_cast<ComponentTypeTs *>(
-                        this->ComponentImplementation<ComponentTypeTs>(
-                            entity.Id()))...))
-            {
-              break;
-            }
-            uniqLock.lock();
-          }
-        }
-      }
-
       /// \brief Get all entities which contain given component types, as well
       /// as the components.
       /// \param[in] _f Callback function to be called for each matching entity.
@@ -604,39 +547,69 @@ namespace ignition
         }
       }
 
-      /// \brief Get all entities which contain given component types, as well
-      /// as the mutable components.
-      /// \param[in] _f Callback function to be called for each matching entity.
-      /// The function parameter are all the desired component types, in the
-      /// order they're listed on the template. The callback function can
-      /// return false to stop subsequent calls to the callback, otherwise
-      /// a true value should be returned.
-      /// \tparam ComponentTypeTs All the desired mutable component types.
-      /// \warning This function should not be called outside of System's
-      /// PreUpdate, Update, or PostUpdate callbacks.
-      public: template<typename ...ComponentTypeTs>
-              void Each(typename identity<std::function<
-                  bool(const EntityId &_entity,
-                       ComponentTypeTs *...)>>::type _f)
+      /// \brief Update the value of an existing component.
+      /// \param[in] _id Id of the Entity to which the component belongs.
+      /// \param[in] _value Value of the component.
+      /// \tparam ComponentTypeT Type of the component
+      /// \returns True if the component that belongs to the entity was found
+      /// and its value was updated
+      public: template<typename ComponentTypeT>
+              bool UpdateComponent(EntityId _id, ComponentTypeT _value)
       {
-        // Get the view. This will create a new view if one does not already
-        // exist.
-        View &view = [this]() -> View&
+        std::lock_guard<std::mutex> lock(this->entityMutex);
+        ComponentTypeT *comp = static_cast<ComponentTypeT *>(
+            this->ComponentImplementation<ComponentTypeT>(_id));
+        // comp is null if the component doesn't exist
+        if (comp != nullptr)
         {
-          std::lock_guard<std::mutex> lock(this->entityMutex);
-          return this->FindView<ComponentTypeTs...>();
-        }();
-
-        // Iterate over the entities in the view, and invoke the callback
-        // function.
-        for (const EntityId entity : view.entities)
-        {
-          if (!_f(entity, view.Component<ComponentTypeTs>(entity, this)...))
-          {
-            break;
-          }
+          *comp = std::move(_value);
+          return true;
         }
+
+        return false;
       }
+
+      /// \brief Request to update the value of an existing component. This is
+      /// the preferred method of updating components
+      /// \param[in] _id Id of the Entity to which the component belongs.
+      /// \param[in] _value Value of the component.
+      /// \tparam ComponentTypeT Type of the component
+      /// \returns True if the component that belongs to the entity was found
+      /// and its value was scheduled to be updated
+      public: template <typename ComponentTypeT>
+              bool RequestUpdateComponent(const EntityId _id,
+                                         const ComponentTypeT &_value)
+      {
+        return RequestUpdateComponent(_id, 0, _value);
+      }
+
+      /// \brief Request to update the value of an existing component. This is
+      /// the preferred method of updating components
+      /// \param[in] _id Id of the Entity to which the component belongs.
+      /// \param[in] _priority Priority of the update. Currently ignored.
+      /// \param[in] _value Value of the component.
+      /// \tparam ComponentTypeT Type of the component
+      /// \returns True if the component that belongs to the entity was found
+      /// and its value was scheduled to be updated
+      public: template <typename ComponentTypeT>
+              bool RequestUpdateComponent(const EntityId _id,
+                                          const size_t _priority,
+                                          const ComponentTypeT &_value)
+      {
+        std::lock_guard<std::mutex> lock(this->entityMutex);
+        const ComponentTypeId typeId = ComponentType<ComponentTypeT>();
+        if (this->EntityHasComponentTypeImpl(_id, typeId))
+        {
+          this->RequestUpdateComponentImpl(_id, typeId, _priority,
+                                          std::any(_value));
+          return true;
+        }
+        return false;
+      }
+
+      /// \brief Process all component update requests. This function is
+      /// protected to facilitate testing.
+      protected: void ProcessUpdateComponentRequests();
 
       /// \brief Process all entity erase requests. This will remove
       /// entities and their components. This function is protected to
@@ -871,6 +844,15 @@ namespace ignition
 
       /// \brief Private implementation of RebuildViews
       private: void RebuildViewsImpl();
+
+      /// \brief Private implementation of RequestUpdateComponent
+      /// \param[in] _id Id of the Entity to which the component belongs.
+      /// \param[in] _type Id Type id of the component to update
+      /// \param[in] _priority Priority of the update. Currently ignored.
+      /// \param[in] _value Value of the component.
+      private: void RequestUpdateComponentImpl(const EntityId _id,
+                   const ComponentTypeId _typeId, const size_t _priority,
+                   const std::any &_value);
 
       /// \brief Private data pointer.
       private: std::unique_ptr<EntityComponentManagerPrivate> dataPtr;
