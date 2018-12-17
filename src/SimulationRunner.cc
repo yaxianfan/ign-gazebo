@@ -102,6 +102,8 @@ SimulationRunner::SimulationRunner(const sdf::World *_world,
   // Create entities and components
   this->CreateEntities(_world);
 
+  // TODO(mjcarroll) There will need to be an explicit onPauseEvent handler
+  // if the SetPaused method emits an event to prevent a loop.
   this->pauseConn = this->eventMgr.Connect<events::Pause>(
       std::bind(&SimulationRunner::SetPaused, this, std::placeholders::_1));
 
@@ -653,6 +655,8 @@ void SimulationRunner::SetPaused(const bool _paused)
     else
       this->realTimeWatch.Start();
   }
+
+  this->paused = _paused;
 
   // Store the pause state
   this->currentInfo.paused = _paused;
