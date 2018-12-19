@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
-*/
-#ifndef IGNITION_GAZEBO_COMPONENTS_LINK_HH_
-#define IGNITION_GAZEBO_COMPONENTS_LINK_HH_
+ */
+#ifndef IGNITION_GAZEBO_COMPONENTS_SCALARVELOCITY_HH_
+#define IGNITION_GAZEBO_COMPONENTS_SCALARVELOCITY_HH_
 
 #include <ignition/gazebo/config.hh>
 #include <ignition/gazebo/Export.hh>
 
-#include "ignition/gazebo/components/TagWrapper.hh"
+#include "ignition/gazebo/components/SimpleWrapper.hh"
 
 namespace ignition
 {
@@ -30,10 +30,11 @@ namespace gazebo
 inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
 namespace components
 {
-  /// \brief A component that identifies an entity as being a link.
-  using Link = TagWrapper<class LinkTag>;
+  /// \brief
+  using ScalarVelocity = SimpleWrapper<double, class ScalarVelocityTag>;
 }
 }
 }
 }
 #endif
+
