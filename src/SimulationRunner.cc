@@ -17,6 +17,11 @@
 
 #include "SimulationRunner.hh"
 
+#include <ignition/fuel_tools.hh>
+#include <sdf/Geometry.hh>
+#include <sdf/Mesh.hh>
+
+#include <ignition/math/Helpers.hh>
 #include "ignition/gazebo/Events.hh"
 
 #include "ignition/gazebo/components/CanonicalLink.hh"
@@ -352,8 +357,8 @@ EntityId SimulationRunner::CreateEntities(const sdf::World *_world)
   for (uint64_t modelIndex = 0; modelIndex < _world->ModelCount();
       ++modelIndex)
   {
-    auto model = _world->ModelByIndex(modelIndex);
-    auto modelEntity = this->CreateEntities(model);
+    const sdf::Model *model = _world->ModelByIndex(modelIndex);
+    EntityId modelEntity = this->CreateEntities(model);
 
     this->entityCompMgr.CreateComponent(modelEntity,
         components::ParentEntity(worldEntity));
@@ -363,8 +368,8 @@ EntityId SimulationRunner::CreateEntities(const sdf::World *_world)
   for (uint64_t lightIndex = 0; lightIndex < _world->LightCount();
       ++lightIndex)
   {
-    auto light = _world->LightByIndex(lightIndex);
-    auto lightEntity = this->CreateEntities(light);
+    const sdf::Light *light = _world->LightByIndex(lightIndex);
+    EntityId lightEntity = this->CreateEntities(light);
 
     this->entityCompMgr.CreateComponent(lightEntity,
         components::ParentEntity(worldEntity));
@@ -397,8 +402,8 @@ EntityId SimulationRunner::CreateEntities(const sdf::Model *_model)
   for (uint64_t linkIndex = 0; linkIndex < _model->LinkCount();
       ++linkIndex)
   {
-    auto link = _model->LinkByIndex(linkIndex);
-    auto linkEntity = this->CreateEntities(link);
+    const sdf::Link *link = _model->LinkByIndex(linkIndex);
+    EntityId linkEntity = this->CreateEntities(link);
 
     this->entityCompMgr.CreateComponent(linkEntity,
         components::ParentEntity(modelEntity));
@@ -413,7 +418,7 @@ EntityId SimulationRunner::CreateEntities(const sdf::Model *_model)
   for (uint64_t jointIndex = 0; jointIndex < _model->JointCount();
       ++jointIndex)
   {
-    auto joint = _model->JointByIndex(jointIndex);
+    const sdf::Joint *joint = _model->JointByIndex(jointIndex);
     auto linkEntity = this->CreateEntities(joint);
 
     this->entityCompMgr.CreateComponent(linkEntity,
@@ -461,8 +466,8 @@ EntityId SimulationRunner::CreateEntities(const sdf::Link *_link)
   for (uint64_t visualIndex = 0; visualIndex < _link->VisualCount();
       ++visualIndex)
   {
-    auto visual = _link->VisualByIndex(visualIndex);
-    auto visualEntity = this->CreateEntities(visual);
+    const sdf::Visual *visual = _link->VisualByIndex(visualIndex);
+    EntityId visualEntity = this->CreateEntities(visual);
 
     this->entityCompMgr.CreateComponent(visualEntity,
         components::ParentEntity(linkEntity));
@@ -472,8 +477,8 @@ EntityId SimulationRunner::CreateEntities(const sdf::Link *_link)
   for (uint64_t collisionIndex = 0; collisionIndex < _link->CollisionCount();
       ++collisionIndex)
   {
-    auto collision = _link->CollisionByIndex(collisionIndex);
-    auto collisionEntity = this->CreateEntities(collision);
+    const sdf::Collision *collision = _link->CollisionByIndex(collisionIndex);
+    EntityId collisionEntity = this->CreateEntities(collision);
 
     this->entityCompMgr.CreateComponent(collisionEntity,
         components::ParentEntity(linkEntity));
@@ -483,8 +488,8 @@ EntityId SimulationRunner::CreateEntities(const sdf::Link *_link)
   for (uint64_t lightIndex = 0; lightIndex < _link->LightCount();
       ++lightIndex)
   {
-    auto light = _link->LightByIndex(lightIndex);
-    auto lightEntity = this->CreateEntities(light);
+    const sdf::Light *light = _link->LightByIndex(lightIndex);
+    EntityId lightEntity = this->CreateEntities(light);
 
     this->entityCompMgr.CreateComponent(lightEntity,
         components::ParentEntity(linkEntity));
@@ -546,8 +551,28 @@ EntityId SimulationRunner::CreateEntities(const sdf::Visual *_visual)
 
   if (_visual->Geom())
   {
+    const sdf::Geometry *geom = _visual->Geom();
+    if (geom->Type() == sdf::GeometryType::MESH)
+    {
+      const sdf::Mesh *mesh = geom->MeshShape();
+      std::string uri = mesh->Uri();
+      std::cout << "Mesh URI[" << uri << "]\n";
+
+      ignition::fuel_tools::ServerConfig serverConf;
+      serverConf.SetUrl(ignition::common::URI("https://api.ignitionfuel.org"));
+      serverConf.SetVersion("1.0");
+
+      // Setup ClientConfig.
+      ignition::fuel_tools::ClientConfig conf;
+      conf.SetCacheLocation("/home/nkoenig/.ignition/fuel");
+      conf.AddServer(serverConf);
+
+      // Instantiate the FuelClient object with the configuration.
+      ignition::fuel_tools::FuelClient client(conf);
+    }
+
     this->entityCompMgr.CreateComponent(visualEntity,
-        components::Geometry(*_visual->Geom()));
+        components::Geometry(*geom));
   }
 
   // \todo(louise) Populate with default material if undefined
