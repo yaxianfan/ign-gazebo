@@ -20,19 +20,19 @@
 #include <ignition/gazebo/config.hh>
 #include <ignition/gazebo/Export.hh>
 
+#include "ignition/gazebo/components/TagWrapper.hh"
+
 namespace ignition
 {
 namespace gazebo
 {
+// Inline bracket to help doxygen filtering.
+inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
 namespace components
 {
-  // Inline bracket to help doxygen filtering.
-  inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
-  /// \brief This component identifies an entity as being a joint.
-  class IGNITION_GAZEBO_VISIBLE Joint
-  {
-  };
-  }
+  /// \brief A component that identifies an entity as being a joint.
+  using Joint = TagWrapper<class JointTag>;
+}
 }
 }
 }
