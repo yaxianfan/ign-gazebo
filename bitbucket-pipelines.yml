@@ -35,6 +35,7 @@ pipelines:
             libignition-transport6-dev
             # libignition-gui-dev
             # libignition-msgs3-dev
+            # libignition-sensors0-dev
             # libsdformat8-dev
           # SDFormat (uncomment if a specific branch is needed)
           - apt install -y
@@ -51,6 +52,14 @@ pipelines:
             libprotobuf-dev protobuf-compiler libprotoc-dev
           - hg clone http://bitbucket.org/ignitionrobotics/ign-msgs -b gz11
           - cd ign-msgs
+          - mkdir build
+          - cd build
+          - cmake .. -DBUILD_TESTING=false
+          - make -j4 install
+          - cd ../..
+          # Ignition sensors (uncomment if a specific branch is needed)
+          - hg clone http://bitbucket.org/ignitionrobotics/ign-sensors -b default
+          - cd ign-sensors
           - mkdir build
           - cd build
           - cmake .. -DBUILD_TESTING=false
