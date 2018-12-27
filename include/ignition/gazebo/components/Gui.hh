@@ -14,11 +14,28 @@
  * limitations under the License.
  *
 */
-#include "TestModelSystem.hh"
+#ifndef IGNITION_GAZEBO_COMPONENTS_GUI_HH_
+#define IGNITION_GAZEBO_COMPONENTS_Gui_HH_
 
-#include <ignition/plugin/Register.hh>
+#include <sdf/Gui.hh>
 
-IGNITION_ADD_PLUGIN(ignition::gazebo::TestModelSystem,
-    ignition::gazebo::System,
-    ignition::gazebo::TestModelSystem::ISystemConfigure)
+#include <ignition/gazebo/config.hh>
+#include <ignition/gazebo/Export.hh>
 
+#include "ignition/gazebo/components/SimpleWrapper.hh"
+
+namespace ignition
+{
+namespace gazebo
+{
+// Inline bracket to help doxygen filtering.
+inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
+namespace components
+{
+  /// \brief This component holds GUI information.
+  using Gui = SimpleWrapper<sdf::Gui, class GuiTag>;
+}
+}
+}
+}
+#endif

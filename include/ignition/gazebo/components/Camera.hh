@@ -14,11 +14,29 @@
  * limitations under the License.
  *
 */
-#include "TestModelSystem.hh"
+#ifndef IGNITION_GAZEBO_COMPONENTS_CAMERA_HH_
+#define IGNITION_GAZEBO_COMPONENTS_CAMERA_HH_
 
-#include <ignition/plugin/Register.hh>
+#include <sdf/Element.hh>
 
-IGNITION_ADD_PLUGIN(ignition::gazebo::TestModelSystem,
-    ignition::gazebo::System,
-    ignition::gazebo::TestModelSystem::ISystemConfigure)
+#include <ignition/gazebo/config.hh>
+#include <ignition/gazebo/Export.hh>
 
+#include "ignition/gazebo/components/SimpleWrapper.hh"
+
+namespace ignition
+{
+namespace gazebo
+{
+// Inline bracket to help doxygen filtering.
+inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
+namespace components
+{
+  /// \brief TODO(louise) Substitute with sdf::Camera once that exists?
+  /// This is currently the whole <sensor> element.
+  using Camera = SimpleWrapper<sdf::ElementPtr, class CameraTag>;
+}
+}
+}
+}
+#endif

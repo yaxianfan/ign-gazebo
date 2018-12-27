@@ -19,10 +19,12 @@
 
 #include "ignition/gazebo/Events.hh"
 
+#include "ignition/gazebo/components/Camera.hh"
 #include "ignition/gazebo/components/CanonicalLink.hh"
 #include "ignition/gazebo/components/Collision.hh"
 #include "ignition/gazebo/components/ChildLinkName.hh"
 #include "ignition/gazebo/components/Geometry.hh"
+#include "ignition/gazebo/components/Gui.hh"
 #include "ignition/gazebo/components/Inertial.hh"
 #include "ignition/gazebo/components/Joint.hh"
 #include "ignition/gazebo/components/JointAxis.hh"
@@ -35,6 +37,7 @@
 #include "ignition/gazebo/components/ParentLinkName.hh"
 #include "ignition/gazebo/components/ParentEntity.hh"
 #include "ignition/gazebo/components/Pose.hh"
+#include "ignition/gazebo/components/Sensor.hh"
 #include "ignition/gazebo/components/Static.hh"
 #include "ignition/gazebo/components/ThreadPitch.hh"
 #include "ignition/gazebo/components/Visual.hh"
@@ -106,8 +109,11 @@ SimulationRunner::SimulationRunner(const sdf::World *_world,
       std::bind(&SimulationRunner::SetPaused, this, std::placeholders::_1));
 
   // World control
-  this->node.Advertise("/world/" + this->worldName + "/control",
-        &SimulationRunner::OnWorldControl, this);
+  transport::NodeOptions opts;
+  opts.SetNameSpace("/world/" + this->worldName);
+  this->node = std::make_unique<transport::Node>(opts);
+
+  this->node->Advertise("control", &SimulationRunner::OnWorldControl, this);
 
   ignmsg << "World [" << _world->Name() << "] initialized with ["
          << physics->Name() << "] physics profile." << std::endl;
@@ -179,8 +185,8 @@ void SimulationRunner::PublishStats()
   {
     transport::AdvertiseMessageOptions advertOpts;
     advertOpts.SetMsgsPerSec(5);
-    this->statsPub = this->node.Advertise<ignition::msgs::WorldStatistics>(
-          "/world/" + this->worldName + "/stats", advertOpts);
+    this->statsPub = this->node->Advertise<ignition::msgs::WorldStatistics>(
+        "stats", advertOpts);
   }
 
   // Create the world statistics message.
@@ -347,6 +353,11 @@ EntityId SimulationRunner::CreateEntities(const sdf::World *_world)
   this->entityCompMgr.CreateComponent(worldEntity, components::World());
   this->entityCompMgr.CreateComponent(worldEntity,
       components::Name(_world->Name()));
+  if (_world->Gui())
+  {
+    this->entityCompMgr.CreateComponent(worldEntity,
+        components::Gui(*_world->Gui()));
+  }
 
   // Models
   for (uint64_t modelIndex = 0; modelIndex < _world->ModelCount();
@@ -490,6 +501,17 @@ EntityId SimulationRunner::CreateEntities(const sdf::Link *_link)
         components::ParentEntity(linkEntity));
   }
 
+  // Sensors
+  for (uint64_t sensorIndex = 0; sensorIndex < _link->SensorCount();
+      ++sensorIndex)
+  {
+    auto sensor = _link->SensorByIndex(sensorIndex);
+    auto sensorEntity = this->CreateEntities(sensor);
+
+    this->entityCompMgr.CreateComponent(sensorEntity,
+        components::ParentEntity(linkEntity));
+  }
+
   return linkEntity;
 }
 
@@ -581,6 +603,36 @@ EntityId SimulationRunner::CreateEntities(const sdf::Collision *_collision)
   }
 
   return collisionEntity;
+}
+
+//////////////////////////////////////////////////
+EntityId SimulationRunner::CreateEntities(const sdf::Sensor *_sensor)
+{
+  // Entity
+  EntityId sensorEntity = this->entityCompMgr.CreateEntity();
+
+  // Components
+  this->entityCompMgr.CreateComponent(sensorEntity,
+      components::Sensor());
+  this->entityCompMgr.CreateComponent(sensorEntity,
+      components::Pose(_sensor->Pose()));
+  this->entityCompMgr.CreateComponent(sensorEntity,
+      components::Name(_sensor->Name()));
+
+  if (_sensor->Type() == sdf::SensorType::CAMERA)
+  {
+    auto elem = _sensor->Element();
+
+    this->entityCompMgr.CreateComponent(sensorEntity,
+        components::Camera(elem));
+  }
+  else
+  {
+    ignwarn << "Sensor type [" << static_cast<int>(_sensor->Type())
+            << "] not supported yet." << std::endl;
+  }
+
+  return sensorEntity;
 }
 
 //////////////////////////////////////////////////
