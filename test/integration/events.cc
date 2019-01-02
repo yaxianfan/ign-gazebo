@@ -47,7 +47,9 @@ TEST(EventTrigger, TriggerPause)
   EXPECT_TRUE(*server.Paused());
 
   // Run 1 iteration and check that it's now unpaused
+  igndbg << "One iteration" << std::endl;
   server.Run(true, 1, true);
+  igndbg << "Check paused" << std::endl;
   EXPECT_FALSE(*server.Paused());
 }
 
