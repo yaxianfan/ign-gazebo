@@ -36,6 +36,7 @@ pipelines:
             libignition-tools-dev
             libignition-transport6-dev
             libsdformat8-dev
+            # libignition-sensors0-dev
           # SDFormat (uncomment if a specific branch is needed)
           # - apt install -y
           #   libxml2-utils
@@ -56,6 +57,14 @@ pipelines:
           # - cmake .. -DBUILD_TESTING=false
           # - make -j4 install
           # - cd ../..
+          # Ignition sensors (uncomment if a specific branch is needed)
+          - hg clone http://bitbucket.org/ignitionrobotics/ign-sensors -b default
+          - cd ign-sensors
+          - mkdir build
+          - cd build
+          - cmake .. -DBUILD_TESTING=false
+          - make -j4 install
+          - cd ../..
           # Ignition gui (uncomment if a specific branch is needed)
           # - apt install -y
           #   qtbase5-dev libtinyxml2-dev libprotoc-dev libprotobuf-dev
