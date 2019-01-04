@@ -6,9 +6,11 @@ set(IGN_TRANSPORT_VER ${ignition-transport6_VERSION_MAJOR})
 find_package(sdformat8 REQUIRED)
 set(SDF_VER ${sdformat8_VERSION_MAJOR})
 
-add_executable(joystick joystick.cc)
-target_link_libraries(joystick
-  ignition-transport${IGN_TRANSPORT_VER}::core
-  sdformat${SDF_VER}::sdformat${SDF_VER}
-)
+if (UNIX)
+  add_executable(joystick joystick.cc)
+  target_link_libraries(joystick
+    ignition-transport${IGN_TRANSPORT_VER}::core
+    sdformat${SDF_VER}::sdformat${SDF_VER}
+  )
+endif()
 
