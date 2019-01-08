@@ -633,6 +633,13 @@ EntityId SimulationRunner::CreateEntities(const sdf::Sensor *_sensor)
     this->entityCompMgr.CreateComponent(sensorEntity,
         components::Camera(elem));
   }
+  else if (_sensor->Type() == sdf::SensorType::ALTIMETER)
+  {
+     auto elem = _sensor->Element();
+
+    this->entityCompMgr.CreateComponent(sensorEntity,
+        components::Altimeter(elem));
+  }
   else
   {
     ignwarn << "Sensor type [" << static_cast<int>(_sensor->Type())
