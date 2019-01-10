@@ -32,6 +32,7 @@
 #include <ignition/physics/ForwardStep.hh>
 #include <ignition/physics/FrameSemantics.hh>
 #include <ignition/physics/GetEntities.hh>
+#include <ignition/physics/Link.hh>
 #include <ignition/physics/Joint.hh>
 #include <ignition/physics/Shape.hh>
 #include <ignition/physics/SphereShape.hh>
@@ -63,6 +64,7 @@
 #include "ignition/gazebo/components/JointAxis.hh"
 #include "ignition/gazebo/components/JointType.hh"
 #include "ignition/gazebo/components/Link.hh"
+#include "ignition/gazebo/components/LinearVelocity.hh"
 #include "ignition/gazebo/components/Model.hh"
 #include "ignition/gazebo/components/Name.hh"
 #include "ignition/gazebo/components/ParentEntity.hh"
@@ -87,6 +89,7 @@ class ignition::gazebo::systems::PhysicsPrivate
           ignition::physics::LinkFrameSemantics,
           ignition::physics::ForwardStep,
           ignition::physics::GetEntities,
+          ignition::physics::SetLinkState,
           ignition::physics::mesh::AttachMeshShapeFeature,
           ignition::physics::SetBasicJointState,
           ignition::physics::sdf::ConstructSdfCollision,
@@ -400,6 +403,23 @@ void PhysicsPrivate::UpdatePhysics(const EntityComponentManager &_ecm)
 
         return true;
       });
+
+  // Handle models by applying the velocity on all child links
+  _ecm.Each<components::Model, components::LinearVelocity>(
+      [&](const Entity &_entity, const components::Model *, const
+          components::LinearVelocity *_linVel)->bool
+      {
+        auto modelIt = this->entityModelMap.find(_entity);
+        if (modelIt != this->entityModelMap.end())
+        {
+          for (std::size_t i = 0; i < modelIt->second->GetLinkCount(); ++i)
+          {
+            auto link = modelIt->second->GetLink(i);
+            link->SetLinearVelocity(math::eigen3::convert(_linVel->Data()));
+          }
+        }
+        return true;
+      });
 }
 
 //////////////////////////////////////////////////
@@ -470,13 +490,6 @@ void PhysicsPrivate::UpdateSim(EntityComponentManager &_ecm) const
         }
         return true;
       });
-
-  // update altimeter
-  _ecm.Each<components::Altimeter, components::Pose, components::ParentEntity>(
-      [&](const Entity &_entity, components::Altimeter * /*_altimeter*/,
-          components::Pose *_pose, components::ParentEntity *_parent)->bool
-      {
-      }
 }
 
 IGNITION_ADD_PLUGIN(ignition::gazebo::systems::Physics,
