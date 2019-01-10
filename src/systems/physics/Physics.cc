@@ -470,6 +470,13 @@ void PhysicsPrivate::UpdateSim(EntityComponentManager &_ecm) const
         }
         return true;
       });
+
+  // update altimeter
+  _ecm.Each<components::Altimeter, components::Pose, components::ParentEntity>(
+      [&](const Entity &_entity, components::Altimeter * /*_altimeter*/,
+          components::Pose *_pose, components::ParentEntity *_parent)->bool
+      {
+      }
 }
 
 IGNITION_ADD_PLUGIN(ignition::gazebo::systems::Physics,
