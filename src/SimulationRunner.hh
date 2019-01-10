@@ -29,16 +29,7 @@
 #include <utility>
 #include <vector>
 
-#include <sdf/Collision.hh>
 #include <sdf/Gui.hh>
-#include <sdf/Joint.hh>
-#include <sdf/Light.hh>
-#include <sdf/Link.hh>
-#include <sdf/Model.hh>
-#include <sdf/Physics.hh>
-#include <sdf/Visual.hh>
-#include <sdf/World.hh>
-
 #include <ignition/common/Event.hh>
 #include <ignition/common/WorkerPool.hh>
 #include <ignition/math/Stopwatch.hh>
@@ -53,6 +44,8 @@
 #include "ignition/gazebo/SystemLoader.hh"
 #include "ignition/gazebo/SystemPluginPtr.hh"
 #include "ignition/gazebo/Types.hh"
+
+#include "LevelManager.hh"
 
 using namespace std::chrono_literals;
 
@@ -107,7 +100,8 @@ namespace ignition
       /// \param[in] _world Pointer to the SDF world.
       /// \param[in] _systemLoader Reference to system manager.
       public: explicit SimulationRunner(const sdf::World *_world,
-                                        const SystemLoaderPtr &_systemLoader);
+                                        const SystemLoaderPtr &_systemLoader,
+                                        const bool _useLevels = false);
 
       /// \brief Destructor.
       public: virtual ~SimulationRunner();
@@ -127,56 +121,11 @@ namespace ignition
       /// \brief Update all the systems
       public: void UpdateSystems();
 
+      /// \brief Update all levels
+      public: void UpdateLevels();
+
       /// \brief Publish current world statistics.
       public: void PublishStats();
-
-      /// \brief Create all entities that exist in the sdf::World object and
-      /// load their plugins.
-      /// \param[in] _world SDF world object.
-      /// \return World entity.
-      public: Entity CreateEntities(const sdf::World *_world);
-
-      /// \brief Create all entities that exist in the sdf::Model object and
-      /// load their plugins.
-      /// \param[in] _model SDF model object.
-      /// \return Model entity.
-      public: Entity CreateEntities(const sdf::Model *_model);
-
-      /// \brief Create all entities that exist in the sdf::Light object and
-      /// load their plugins.
-      /// \param[in] _light SDF light object.
-      /// \return Light entity.
-      public: Entity CreateEntities(const sdf::Light *_light);
-
-      /// \brief Create all entities that exist in the sdf::Link object and
-      /// load their plugins.
-      /// \param[in] _link SDF link object.
-      /// \return Link entity.
-      public: Entity CreateEntities(const sdf::Link *_link);
-
-      /// \brief Create all entities that exist in the sdf::Joint object and
-      /// load their plugins.
-      /// \param[in] _joint SDF joint object.
-      /// \return Joint entity.
-      public: Entity CreateEntities(const sdf::Joint *_joint);
-
-      /// \brief Create all entities that exist in the sdf::Visual object and
-      /// load their plugins.
-      /// \param[in] _visual SDF visual object.
-      /// \return Visual entity.
-      public: Entity CreateEntities(const sdf::Visual *_visual);
-
-      /// \brief Create all entities that exist in the sdf::Collision object and
-      /// load their plugins.
-      /// \param[in] _collision SDF collision object.
-      /// \return Collision entity.
-      public: Entity CreateEntities(const sdf::Collision *_collision);
-
-      /// \brief Load system plugins for a given entity.
-      /// \param[in] _sdf SDF element
-      /// \param[in] _entity Entity
-      public: void LoadPlugins(const sdf::ElementPtr &_sdf,
-          const Entity _entity);
 
       /// \brief Get whether this is running. When running is true,
       /// then simulation is stepping forward.
@@ -320,6 +269,9 @@ namespace ignition
       /// \brief Manager of all components.
       private: EntityComponentManager entityCompMgr;
 
+      /// \brief Manager of all levels.
+      private: std::unique_ptr<LevelManager> levelMgr;
+
       /// \brief A pool of worker threads.
       private: common::WorkerPool workerPool{2};
 
@@ -361,6 +313,9 @@ namespace ignition
       /// \brief Connection to the pause event.
       private: ignition::common::ConnectionPtr pauseConn;
 
+      /// \brief Pointer to the sdf::World object of this runner
+      private: const sdf::World *sdfWorld;
+
       /// \brief The real time factor calculated based on sim and real time
       /// averages.
       private: double realTimeFactor{0.0};
@@ -380,6 +335,8 @@ namespace ignition
 
       /// \brief Keep the latest GUI message.
       public: msgs::GUI guiMsg;
+
+      friend class LevelManager;
     };
     }
   }

@@ -41,6 +41,7 @@ DEFINE_bool(g, false, "Run only the GUI.");
 DEFINE_string(f, "", "Load an SDF file on start.");
 DEFINE_bool(r, false, "Run simulation on start. "
     "The default is false, which starts simulation paused.");
+DEFINE_bool(levels, false, "Use levels");
 
 //////////////////////////////////////////////////
 void Help()
@@ -72,6 +73,9 @@ void Help()
   << std::endl
   << "  -r                     Run simulation on start."
   << " The default is false, which starts simulation paused."
+  << std::endl
+  << "  --levels               Use the level system."
+  << " The default is false, which loads all models."
   << std::endl
   << std::endl;
 }
