@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 Open Source Robotics Foundation
+ * Copyright (C) 2019 Open Source Robotics Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,8 +35,8 @@ namespace systems
   class AltimeterSensor;
 
   /// \class Altimeter Altimeter.hh ignition/gazebo/systems/Altimeter.hh
-  /// \brief TODO(louise) Have one system for all sensors, or one per
-  /// sensor / sensor type?
+  /// \brief An altimeter sensor that reports vertical position and velocity
+  /// readings over ign transport
   class IGNITION_GAZEBO_VISIBLE Altimeter:
     public System,
     public ISystemConfigure,

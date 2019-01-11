@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 Open Source Robotics Foundation
+ * Copyright (C) 2019 Open Source Robotics Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ using namespace ignition;
 using namespace gazebo;
 using namespace systems;
 
-/// \brief Altimeter sensor data
+/// \brief Altimeter sensor class
 class ignition::gazebo::systems::AltimeterSensor
 {
   /// \brief Constructor
@@ -89,7 +89,7 @@ class ignition::gazebo::systems::AltimeterPrivate
   /// \param[in] _ecm Immutable reference to ECM.
   public: void UpdateAltimeters(const EntityComponentManager &_ecm);
 
-  /// \brief Compute world pose of an entity
+  /// \brief Helper function to compute world pose of an entity
   /// \param[in] _entity Entity to get the world pose for
   /// \param[in] _ecm Immutable reference to ECM.
   public: math::Pose3d WorldPose(const Entity &_entity,

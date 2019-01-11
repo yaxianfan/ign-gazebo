@@ -494,10 +494,10 @@ void PhysicsPrivate::UpdateSim(EntityComponentManager &_ecm) const
       });
 
   // Update altimeter components
-  // \todo(anyone) move computation to altimeter system?
+  // \todo(anyone) move logic to altimeter system?
   // Ideally we should avoid doing this inside the physics system but the
-  // altimeter needes to compute linear velocity at an offset of parent link
-  // in world frame can only be conveniently computed with access to the
+  // altimeter needs to compute linear velocity at an offset of parent link
+  // in world frame, which can only be conveniently done with access to the
   // physics engine
   _ecm.Each<components::Altimeter, components::Pose, components::WorldPose,
             components::WorldLinearVelocity, components::ParentEntity>(
