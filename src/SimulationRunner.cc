@@ -31,6 +31,7 @@
 #include "ignition/gazebo/components/JointType.hh"
 #include "ignition/gazebo/components/Light.hh"
 #include "ignition/gazebo/components/Link.hh"
+#include "ignition/gazebo/components/LinearVelocity.hh"
 #include "ignition/gazebo/components/Material.hh"
 #include "ignition/gazebo/components/Model.hh"
 #include "ignition/gazebo/components/Name.hh"
@@ -640,6 +641,12 @@ Entity SimulationRunner::CreateEntities(const sdf::Sensor *_sensor)
 
     this->entityCompMgr.CreateComponent(sensorEntity,
         components::Altimeter(elem));
+
+    // create components to be filled by physics
+    this->entityCompMgr.CreateComponent(sensorEntity,
+        components::WorldPose(math::Pose3d::Zero));
+    this->entityCompMgr.CreateComponent(sensorEntity,
+        components::WorldLinearVelocity(math::Vector3d::Zero));
   }
   else
   {

@@ -21,6 +21,7 @@
 #include <ignition/math/eigen3/Conversions.hh>
 #include <ignition/physics/FeatureList.hh>
 #include <ignition/physics/FeaturePolicy.hh>
+#include <ignition/physics/RelativeQuantity.hh>
 #include <ignition/physics/RequestEngine.hh>
 #include <ignition/plugin/Loader.hh>
 #include <ignition/plugin/PluginPtr.hh>
@@ -55,6 +56,7 @@
 
 #include "ignition/gazebo/EntityComponentManager.hh"
 // Components
+#include "ignition/gazebo/components/Altimeter.hh"
 #include "ignition/gazebo/components/CanonicalLink.hh"
 #include "ignition/gazebo/components/ChildLinkName.hh"
 #include "ignition/gazebo/components/Collision.hh"
@@ -454,6 +456,8 @@ void PhysicsPrivate::UpdateSim(EntityComponentManager &_ecm) const
           auto parentPose =
               _ecm.Component<components::Pose>(_parent->Data());
 
+          auto worldPose = linkIt->second->FrameDataRelativeToWorld().pose;
+
           // if the parentPose is a nullptr, something is wrong with ECS
           // creation
           if (!parentPose)
@@ -465,8 +469,7 @@ void PhysicsPrivate::UpdateSim(EntityComponentManager &_ecm) const
           if (canonicalLink)
           {
             // This is the canonical link, update the model
-            auto worldPose = linkIt->second->FrameDataRelativeToWorld().pose;
-            // the Pose component, _pose, of this link is the initial
+            // The Pose component, _pose, of this link is the initial
             // transform of the link w.r.t its model. This component never
             // changes because it's "fixed" to the model. Instead, we change
             // the model's pose here. The physics engine gives us the pose of
@@ -478,7 +481,6 @@ void PhysicsPrivate::UpdateSim(EntityComponentManager &_ecm) const
           }
           else
           {
-            auto worldPose = linkIt->second->FrameDataRelativeToWorld().pose;
             // Compute the relative pose of this link from the model
             *_pose = components::Pose(math::eigen3::convert(worldPose) +
                                       parentPose->Data().Inverse());
@@ -488,6 +490,50 @@ void PhysicsPrivate::UpdateSim(EntityComponentManager &_ecm) const
         {
           ignwarn << "Unknown link with id " << _entity << " found\n";
         }
+        return true;
+      });
+
+  // Update altimeter components
+  // \todo(anyone) move computation to altimeter system?
+  // Ideally we should avoid doing this inside the physics system but the
+  // altimeter needes to compute linear velocity at an offset of parent link
+  // in world frame can only be conveniently computed with access to the
+  // physics engine
+  _ecm.Each<components::Altimeter, components::Pose, components::WorldPose,
+            components::WorldLinearVelocity, components::ParentEntity>(
+      [&](const Entity &/*_entity*/, components::Altimeter * /*_altimeter*/,
+          components::Pose *_pose, components::WorldPose *_worldPose,
+          components::WorldLinearVelocity *_worldLinearVel,
+          components::ParentEntity *_parent)->bool
+      {
+        auto linkIt = this->entityLinkMap.find(_parent->Data());
+        if (linkIt != this->entityLinkMap.end())
+        {
+          // set sensor world pose
+          auto linkFrameDataWorld = linkIt->second->FrameDataRelativeToWorld();
+          auto linkWorldPose = linkFrameDataWorld.pose;
+          auto sensorWorldPose = _pose->Data() +
+              math::eigen3::convert(linkWorldPose);
+          *_worldPose = components::WorldPose(sensorWorldPose);
+
+          // compute sensor world linear velocity.
+          // offset is sensor pos relative to parent link
+          physics::FrameData3d sensorFromLink;
+          math::Vector3d offset = _pose->Data().Pos();
+          sensorFromLink.pose.translation() = math::eigen3::convert(offset);
+          sensorFromLink.pose.linear() =
+              math::eigen3::convert(math::Matrix3d::Identity);
+
+          physics::RelativeFrameData3d relFrameData(
+              linkIt->second->GetFrameID(), sensorFromLink);
+          auto sensorData =
+              this->engine->Resolve(relFrameData, physics::FrameID::World());
+
+          // set sensor world linear velocity
+          *_worldLinearVel = components::WorldLinearVelocity(
+              math::eigen3::convert(sensorData.linearVelocity));
+        }
+
         return true;
       });
 }
