@@ -74,7 +74,7 @@ class ignition::gazebo::systems::AltimeterSensor
 /// \brief Private Altimeter data class.
 class ignition::gazebo::systems::AltimeterPrivate
 {
-  /// \brief used to store whether rendering objects have been created.
+  /// \brief Used to store whether objects have been created.
   public: bool initialized = false;
 
   /// \brief A map of altimeter entity to its vertical reference
@@ -243,8 +243,7 @@ math::Pose3d AltimeterPrivate::WorldPose(const Entity &_entity,
   while (p)
   {
     // get pose of parent entity
-    auto parentPose =
-        _ecm.Component<components::Pose>(p->Data());
+    auto parentPose = _ecm.Component<components::Pose>(p->Data());
     if (!parentPose)
       break;
     // transform pose
