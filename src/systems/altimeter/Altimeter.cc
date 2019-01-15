@@ -26,9 +26,11 @@
 
 #include "ignition/gazebo/components/Altimeter.hh"
 #include "ignition/gazebo/components/LinearVelocity.hh"
+#include "ignition/gazebo/components/Name.hh"
 #include "ignition/gazebo/components/ParentEntity.hh"
 #include "ignition/gazebo/components/Pose.hh"
 #include "ignition/gazebo/EntityComponentManager.hh"
+#include "ignition/gazebo/Util.hh"
 
 #include "Altimeter.hh"
 
@@ -89,11 +91,11 @@ class ignition::gazebo::systems::AltimeterPrivate
   /// \param[in] _ecm Immutable reference to ECM.
   public: void UpdateAltimeters(const EntityComponentManager &_ecm);
 
-  /// \brief Helper function to compute world pose of an entity
+  /// \brief Helper function to generate default topic name for the sensor
   /// \param[in] _entity Entity to get the world pose for
   /// \param[in] _ecm Immutable reference to ECM.
-  public: math::Pose3d WorldPose(const Entity &_entity,
-      const EntityComponentManager &_ecm);
+  public: std::string DefaultTopic(const Entity &_entity,
+    const EntityComponentManager &_ecm);
 };
 
 //////////////////////////////////////////////////
@@ -110,17 +112,17 @@ AltimeterSensor::~AltimeterSensor()
 void AltimeterSensor::Load(const sdf::ElementPtr &_sdf)
 {
   if (_sdf->HasElement("topic"))
-  {
     this->topic = _sdf->Get<std::string>("topic");
-    this->pub = this->node.Advertise<ignition::msgs::Altimeter>(this->topic);
-  }
 }
 
 //////////////////////////////////////////////////
 void AltimeterSensor::Publish()
 {
-  if (!this->pub)
+  if (this->topic.empty())
     return;
+
+  if (!this->pub)
+    this->pub = this->node.Advertise<ignition::msgs::Altimeter>(this->topic);
 
   msgs::Altimeter msg;
   msg.set_vertical_position(this->verticalPosition);
@@ -140,35 +142,25 @@ Altimeter::~Altimeter()
 }
 
 //////////////////////////////////////////////////
-void Altimeter::Configure(const Entity &/*_id*/,
-    const std::shared_ptr<const sdf::Element> &/*_sdf*/,
-    EntityComponentManager &/*_ecm*/,
-    EventManager &/*_eventMgr*/)
-{
-}
-
-//////////////////////////////////////////////////
-void Altimeter::Update(const UpdateInfo &_info, EntityComponentManager &_ecm)
+void Altimeter::PreUpdate(const UpdateInfo &/*_info*/,
+    EntityComponentManager &_ecm)
 {
   if (!this->dataPtr->initialized)
   {
     this->dataPtr->CreateAltimeterEntities(_ecm);
     this->dataPtr->initialized = true;
   }
-
-  // Only step if not paused.
-  if (!_info.paused)
-  {
-    this->dataPtr->UpdateAltimeters(_ecm);
-  }
 }
 
 //////////////////////////////////////////////////
 void Altimeter::PostUpdate(const UpdateInfo &_info,
-                           const EntityComponentManager &/*_ecm*/)
+                           const EntityComponentManager &_ecm)
 {
+  // Only update and publish if not paused.
   if (_info.paused)
     return;
+
+  this->dataPtr->UpdateAltimeters(_ecm);
 
   for (auto &it : this->dataPtr->entitySensorMap)
   {
@@ -180,19 +172,22 @@ void Altimeter::PostUpdate(const UpdateInfo &_info,
 void AltimeterPrivate::CreateAltimeterEntities(EntityComponentManager &_ecm)
 {
   // Create altimeters
-  _ecm.Each<components::Altimeter, components::Pose, components::ParentEntity>(
+  _ecm.Each<components::Altimeter>(
     [&](const Entity &_entity,
-        const components::Altimeter *_altimeter,
-        const components::Pose * /*_pose*/,
-        const components::ParentEntity * /*_parent*/)->bool
+        const components::Altimeter *_altimeter)->bool
       {
         // Get initial pose of parent link and set the reference z pos
         // The WorldPose component was just created and so it's empty
         // We'll compute the world pose manually here
-        double verticalReference = this->WorldPose(_entity, _ecm).Pos().Z();
+        double verticalReference = Util::WorldPose(_entity, _ecm).Pos().Z();
         auto sensor = std::make_unique<AltimeterSensor>();
         sensor->Load(_altimeter->Data());
         sensor->verticalReference = verticalReference;
+
+        // create default topic for sensor if not specified
+        if (sensor->topic.empty())
+          sensor->topic = this->DefaultTopic(_entity, _ecm);
+
         this->entitySensorMap.insert(
             std::make_pair(_entity, std::move(sensor)));
 
@@ -203,14 +198,12 @@ void AltimeterPrivate::CreateAltimeterEntities(EntityComponentManager &_ecm)
 //////////////////////////////////////////////////
 void AltimeterPrivate::UpdateAltimeters(const EntityComponentManager &_ecm)
 {
-  _ecm.Each<components::Altimeter, components::Pose, components::WorldPose,
-            components::WorldLinearVelocity, components::ParentEntity>(
+  _ecm.Each<components::Altimeter, components::WorldPose,
+            components::WorldLinearVelocity>(
     [&](const Entity &_entity,
         const components::Altimeter * /*_altimeter*/,
-        const components::Pose * /*_pose*/,
         const components::WorldPose *_worldPose,
-        const components::WorldLinearVelocity *_worldLinearVel,
-        const components::ParentEntity * /*_parent*/)->bool
+        const components::WorldLinearVelocity *_worldLinearVel)->bool
       {
         auto it = this->entitySensorMap.find(_entity);
         if (it != this->entitySensorMap.end())
@@ -232,32 +225,32 @@ void AltimeterPrivate::UpdateAltimeters(const EntityComponentManager &_ecm)
       });
 }
 
+
 //////////////////////////////////////////////////
-math::Pose3d AltimeterPrivate::WorldPose(const Entity &_entity,
+std::string AltimeterPrivate::DefaultTopic(const Entity &_entity,
     const EntityComponentManager &_ecm)
 {
-  // work out pose in world frame
-  math::Pose3d worldPose;
-  math::Pose3d pose = _ecm.Component<components::Pose>(_entity)->Data();
+  // default topic name:
+  // /model/model_name/link/link_name/sensor/sensor_name/altimeter
+  std::string sensorName = _ecm.Component<components::Name>(_entity)->Data();
   auto p = _ecm.Component<components::ParentEntity>(_entity);
+  std::string linkName = _ecm.Component<components::Name>(p->Data())->Data();
+  std::string topic =
+      "/link/" + linkName + "/sensor/" + sensorName + "/altimeter";
+  p = _ecm.Component<components::ParentEntity>(p->Data());
+  // also handle nested models
   while (p)
   {
-    // get pose of parent entity
-    auto parentPose = _ecm.Component<components::Pose>(p->Data());
-    if (!parentPose)
-      break;
-    // transform pose
-    worldPose = pose + parentPose->Data();
+    std::string modelName = _ecm.Component<components::Name>(p->Data())->Data();
+    topic = "/model/" + modelName + topic;
 
     // keep going up the tree
     p = _ecm.Component<components::ParentEntity>(p->Data());
-    pose = worldPose;
   }
-  return worldPose;
+  return topic;
 }
 
 IGNITION_ADD_PLUGIN(Altimeter, System,
-  Altimeter::ISystemConfigure,
-  Altimeter::ISystemUpdate,
+  Altimeter::ISystemPreUpdate,
   Altimeter::ISystemPostUpdate
 )

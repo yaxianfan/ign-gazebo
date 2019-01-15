@@ -39,8 +39,7 @@ namespace systems
   /// readings over ign transport
   class IGNITION_GAZEBO_VISIBLE Altimeter:
     public System,
-    public ISystemConfigure,
-    public ISystemUpdate,
+    public ISystemPreUpdate,
     public ISystemPostUpdate
   {
     /// \brief Constructor
@@ -49,19 +48,14 @@ namespace systems
     /// \brief Destructor
     public: virtual ~Altimeter();
 
-    // Documentation inherited
-    public: void Update(const UpdateInfo &_info,
-                        EntityComponentManager &_ecm) override final;
+    /// Documentation inherited
+    public: void PreUpdate(const UpdateInfo &_info,
+                           EntityComponentManager &_ecm) override final;
 
-    // Documentation inherited
-    public: void Configure(const Entity &_id,
-                           const std::shared_ptr<const sdf::Element> &_sdf,
-                           EntityComponentManager &_ecm,
-                           EventManager &_eventMgr) override final;
 
     /// Documentation inherited
     public: void PostUpdate(const UpdateInfo &_info,
-                const EntityComponentManager &_ecm) override final;
+                            const EntityComponentManager &_ecm) override final;
 
     /// \brief Private data pointer.
     private: std::unique_ptr<AltimeterPrivate> dataPtr;
