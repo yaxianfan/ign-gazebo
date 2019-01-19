@@ -80,8 +80,7 @@ EntityComponentManager::~EntityComponentManager() = default;
 //////////////////////////////////////////////////
 size_t EntityComponentManager::EntityCount() const
 {
-  return this->dataPtr->entities.Vertices().size() -
-    this->dataPtr->availableEntities.size();
+  return this->dataPtr->entities.Vertices().size();
 }
 
 /////////////////////////////////////////////////
@@ -101,6 +100,9 @@ Entity EntityComponentManager::CreateEntity()
     // Create a brand new entity
     entity = this->dataPtr->entities.Vertices().size();
   }
+
+  ignwarn << "Create " << entity << std::endl;
+
   this->dataPtr->entities.AddVertex(std::to_string(entity), entity, entity);
 
   // Add entity to the list of newly created entities
@@ -195,6 +197,11 @@ void EntityComponentManager::ProcessEraseEntityRequests()
       // Make sure the entity exists and is not erased.
       if (!this->HasEntity(entity))
         continue;
+
+  ignwarn << "Erase " << entity << std::endl;
+
+      // Remove from graph
+      this->dataPtr->entities.RemoveVertex(entity);
 
       // Insert the entity into the set of available entities.
       this->dataPtr->availableEntities.insert(entity);

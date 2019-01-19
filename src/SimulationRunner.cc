@@ -51,7 +51,10 @@ using StringSet = std::unordered_set<std::string>;
 
 //////////////////////////////////////////////////
 SimulationRunner::SimulationRunner(const sdf::World *_world,
-                                   const SystemLoaderPtr &_systemLoader)
+                                   const SystemLoaderPtr &_systemLoader,
+                                   const bool _useLevels
+                                   )
+    : sdfWorld(_world)
 {
   // Keep world name
   this->worldName = _world->Name();
@@ -110,9 +113,12 @@ SimulationRunner::SimulationRunner(const sdf::World *_world,
       std::bind(&SimulationRunner::LoadPlugins, this, std::placeholders::_1,
       std::placeholders::_2));
 
-  // Create entities and components
-  auto factory = Factory(this->entityCompMgr, this->eventMgr);
-  factory.CreateEntities(_world);
+  // Create the level manager
+  this->levelMgr = std::make_unique<LevelManager>(this, _useLevels);
+
+  // Read level info and load the active levels
+  this->levelMgr->Configure();
+  this->UpdateLevels();
 
   // World control
   transport::NodeOptions opts;
@@ -280,6 +286,14 @@ void SimulationRunner::UpdateSystems()
 }
 
 /////////////////////////////////////////////////
+void SimulationRunner::UpdateLevels()
+{
+  this->levelMgr->UpdateLevelsState();
+  this->levelMgr->LoadActiveLevels();
+  this->levelMgr->UnloadInactiveLevels();
+}
+
+/////////////////////////////////////////////////
 void SimulationRunner::Stop()
 {
   this->running = false;
@@ -348,6 +362,8 @@ bool SimulationRunner::Run(const uint64_t _iterations)
 
     // Record when the update step starts.
     this->prevUpdateRealTime = std::chrono::steady_clock::now();
+
+    this->UpdateLevels();
 
     // Update all the systems.
     this->UpdateSystems();
