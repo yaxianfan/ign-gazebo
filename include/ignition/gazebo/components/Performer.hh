@@ -13,15 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
-*/
-#ifndef IGNITION_GAZEBO_COMPONENTS_PARENTENTITY_HH_
-#define IGNITION_GAZEBO_COMPONENTS_PARENTENTITY_HH_
+ */
+#ifndef IGNITION_GAZEBO_COMPONENTS_PERFORMER_HH_
+#define IGNITION_GAZEBO_COMPONENTS_PERFORMER_HH_
 
 #include <ignition/gazebo/config.hh>
-#include <ignition/gazebo/Entity.hh>
 #include <ignition/gazebo/Export.hh>
 
-#include "ignition/gazebo/components/SimpleWrapper.hh"
+#include "ignition/gazebo/components/TagWrapper.hh"
 
 namespace ignition
 {
@@ -31,15 +30,8 @@ namespace gazebo
 inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
 namespace components
 {
-  /// \brief This component holds an entity's parent entity.
-  ///
-  /// Note that the EntityComponentManager also keeps the parent-child
-  /// relationship stored in a graph, and that information should be
-  /// kept in sync with the parent entity components. Therefore,
-  /// it is recommended that the `ParentEntity` component is never
-  /// edited by hand, and instead, entities should be created using
-  /// the `gazebo::Factory` class.
-  using ParentEntity = SimpleWrapper<Entity, class ParentEntityTag>;
+  /// \brief This component identifies an entity as being a performer.
+  using Performer = TagWrapper<class PerformerTag>;
 }
 }
 }

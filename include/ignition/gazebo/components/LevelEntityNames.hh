@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
-*/
-#ifndef IGNITION_GAZEBO_COMPONENTS_PARENTENTITY_HH_
-#define IGNITION_GAZEBO_COMPONENTS_PARENTENTITY_HH_
+ */
+#ifndef IGNITION_GAZEBO_COMPONENTS_LEVELENTITYNAMES_HH_
+#define IGNITION_GAZEBO_COMPONENTS_LEVELENTITYNAMES_HH_
 
+#include <string>
+#include <set>
 #include <ignition/gazebo/config.hh>
-#include <ignition/gazebo/Entity.hh>
 #include <ignition/gazebo/Export.hh>
 
 #include "ignition/gazebo/components/SimpleWrapper.hh"
@@ -31,17 +32,13 @@ namespace gazebo
 inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
 namespace components
 {
-  /// \brief This component holds an entity's parent entity.
-  ///
-  /// Note that the EntityComponentManager also keeps the parent-child
-  /// relationship stored in a graph, and that information should be
-  /// kept in sync with the parent entity components. Therefore,
-  /// it is recommended that the `ParentEntity` component is never
-  /// edited by hand, and instead, entities should be created using
-  /// the `gazebo::Factory` class.
-  using ParentEntity = SimpleWrapper<Entity, class ParentEntityTag>;
+  /// \brief A component that holds a list of names of entities to be loaded in
+  /// a level
+  using LevelEntityNames =
+      SimpleWrapper<std::set<std::string>, class LevelEntityNamesTag>;
 }
 }
 }
 }
 #endif
+
