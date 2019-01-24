@@ -80,8 +80,7 @@ EntityComponentManager::~EntityComponentManager() = default;
 //////////////////////////////////////////////////
 size_t EntityComponentManager::EntityCount() const
 {
-  return this->dataPtr->entities.Vertices().size() -
-    this->dataPtr->availableEntities.size();
+  return this->dataPtr->entities.Vertices().size();
 }
 
 /////////////////////////////////////////////////
@@ -101,6 +100,9 @@ Entity EntityComponentManager::CreateEntity()
     // Create a brand new entity
     entity = this->dataPtr->entities.Vertices().size();
   }
+
+  ignwarn << "Create " << entity << std::endl;
+
   this->dataPtr->entities.AddVertex(std::to_string(entity), entity, entity);
 
   // Add entity to the list of newly created entities
