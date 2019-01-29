@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 Open Source Robotics Foundation
+ * Copyright (C) 2019 Open Source Robotics Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  * limitations under the License.
  *
 */
-#ifndef IGNITION_GAZEBO_SYSTEMS_PHYSICS_HH_
-#define IGNITION_GAZEBO_SYSTEMS_PHYSICS_HH_
+#ifndef IGNITION_GAZEBO_SYSTEMS_USERCOMMANDS_HH_
+#define IGNITION_GAZEBO_SYSTEMS_USERCOMMANDS_HH_
 
 #include <memory>
 #include <ignition/gazebo/config.hh>
@@ -31,26 +31,33 @@ namespace systems
   // Inline bracket to help doxygen filtering.
   inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
   // Forward declarations.
-  class PhysicsPrivate;
+  class UserCommandsPrivate;
 
-  /// \class Physics Physics.hh ignition/gazebo/systems/Physics.hh
-  /// \brief Base class for a System.
-  class IGNITION_GAZEBO_VISIBLE Physics:
+  /// \class UserCommands UserCommands.hh ignition/gazebo/systems/UserCommands.hh
+  /// \brief
+  class IGNITION_GAZEBO_VISIBLE UserCommands:
     public System,
-    public ISystemUpdate
+    public ISystemConfigure,
+    public ISystemPreUpdate
   {
     /// \brief Constructor
-    public: explicit Physics();
+    public: explicit UserCommands();
 
     /// \brief Destructor
-    public: ~Physics() override;
+    public: ~UserCommands() final;
+
+    // Documentation inherited
+    public: void Configure(const Entity &_entity,
+                           const std::shared_ptr<const sdf::Element> &_sdf,
+                           EntityComponentManager &_ecm,
+                           EventManager &_eventMgr) override;
 
     /// Documentation inherited
-    public: void Update(const UpdateInfo &_info,
-                EntityComponentManager &_ecm) final;
+    public: void PreUpdate(const UpdateInfo &_info,
+                           EntityComponentManager &_ecm) final;
 
     /// \brief Private data pointer.
-    private: std::unique_ptr<PhysicsPrivate> dataPtr;
+    private: std::unique_ptr<UserCommandsPrivate> dataPtr;
   };
   }
 }
