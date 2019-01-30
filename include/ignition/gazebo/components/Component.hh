@@ -14,13 +14,11 @@
  * limitations under the License.
  *
 */
-#ifndef IGNITION_GAZEBO_COMPONENTS_INERTIAL_HH_
-#define IGNITION_GAZEBO_COMPONENTS_INERTIAL_HH_
+#ifndef IGNITION_GAZEBO_COMPONENTS_COMPONENT_HH_
+#define IGNITION_GAZEBO_COMPONENTS_COMPONENT_HH_
 
-#include <ignition/math/Inertial.hh>
-#include <ignition/gazebo/components/SimpleWrapper.hh>
 #include <ignition/gazebo/config.hh>
-#include <ignition/gazebo/Factory.hh>
+#include <ignition/gazebo/Export.hh>
 
 namespace ignition
 {
@@ -30,11 +28,15 @@ namespace gazebo
 inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
 namespace components
 {
-  /// \brief A component type that contains inertial, ignition::math::Inertiald,
-  /// information.
-  using Inertial = SimpleWrapper<ignition::math::Inertiald, class InertialTag>;
-  inline IGN_GAZEBO_REGISTER_COMPONENT(
-      "ign_gazebo_components.Inertial", Inertial)
+  /// A component base class.
+  class IGNITION_GAZEBO_VISIBLE Component
+  {
+    /// \brief Default constructor.
+    public: Component() = default;
+
+    /// \brief Default destructor.
+    public: virtual ~Component() = default;
+  };
 }
 }
 }

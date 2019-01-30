@@ -18,11 +18,9 @@
 #define IGNITION_GAZEBO_COMPONENTS_MATERIAL_HH_
 
 #include <sdf/Material.hh>
-
+#include <ignition/gazebo/components/SimpleWrapper.hh>
 #include <ignition/gazebo/config.hh>
-#include <ignition/gazebo/Export.hh>
-
-#include "ignition/gazebo/components/SimpleWrapper.hh"
+#include <ignition/gazebo/Factory.hh>
 
 namespace ignition
 {
@@ -34,8 +32,11 @@ namespace components
 {
   /// \brief This component holds an entity's material.
   using Material = SimpleWrapper<sdf::Material, class MaterialTag>;
+  inline IGN_GAZEBO_REGISTER_COMPONENT(
+      "ign_gazebo_components.Material", Material)
 }
 }
 }
 }
+
 #endif
