@@ -16,6 +16,7 @@
 */
 #include "ignition/gazebo/Server.hh"
 
+#include <ignition/fuel_tools/Interface.hh>
 #include <sdf/Root.hh>
 #include <sdf/Error.hh>
 #include "ServerPrivate.hh"
@@ -96,12 +97,20 @@ static const char kDefaultWorld[] =
 Server::Server(const ServerConfig &_config)
   : dataPtr(new ServerPrivate)
 {
+  // Configure SDF to fetch assets from ignition fuel.
+  sdf::setFindCallback(ignition::fuel_tools::fetchResource);
+
   sdf::Root root;
   sdf::Errors errors;
 
   // Load a world if specified.
   if (!_config.SdfFile().empty())
   {
+    // \todo(nkoenig) Async resource download.
+    // This call can block for a long period of time while
+    // resources are downloaded. Blocking here causes the GUI to block with
+    // a black screen (search for "Async resource download" in
+    // 'src/gui_main.cc'.
     errors = root.Load(_config.SdfFile());
   }
   else
