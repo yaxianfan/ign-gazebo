@@ -159,7 +159,7 @@ TEST_P(SceneBroadcasterTest, SceneGraph)
   EXPECT_TRUE(result);
 
   EXPECT_FALSE(res.data().empty());
-  EXPECT_NE(res.data().find("default (0)"), std::string::npos);
+  EXPECT_NE(res.data().find("default (1)"), std::string::npos);
   EXPECT_NE(res.data().find("box (2)"), std::string::npos);
   EXPECT_NE(res.data().find("box_link (3)"), std::string::npos);
   EXPECT_NE(res.data().find("box_visual (4)"), std::string::npos);
