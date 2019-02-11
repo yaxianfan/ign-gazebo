@@ -41,6 +41,7 @@
 #include "ignition/gazebo/EntityComponentManager.hh"
 #include "ignition/gazebo/EventManager.hh"
 #include "ignition/gazebo/Export.hh"
+#include "ignition/gazebo/ServerConfig.hh"
 #include "ignition/gazebo/System.hh"
 #include "ignition/gazebo/SystemLoader.hh"
 #include "ignition/gazebo/SystemPluginPtr.hh"
@@ -103,8 +104,8 @@ namespace ignition
       /// \param[in] _systemLoader Reference to system manager.
       /// \param[in] _useLevels Whether to use levles or not. False by default.
       public: explicit SimulationRunner(const sdf::World *_world,
-                                        const SystemLoaderPtr &_systemLoader,
-                                        const bool _useLevels = false);
+                                 const SystemLoaderPtr &_systemLoader,
+                                 const ServerConfig &_config = ServerConfig());
 
       /// \brief Destructor.
       public: virtual ~SimulationRunner();
@@ -260,6 +261,9 @@ namespace ignition
       /// \brief Process world control service messages.
       private: void ProcessWorldControl();
 
+      /// \brief Load the plugins specified in the ServerConfig
+      private: void LoadConfigurationPlugins();
+
       /// \brief This is used to indicate that Run has been called, and the
       /// server is in the run state.
       private: std::atomic<bool> running{false};
@@ -360,6 +364,8 @@ namespace ignition
 
       /// \brief Keep the latest GUI message.
       public: msgs::GUI guiMsg;
+
+      public: ServerConfig serverConfig;
 
       friend class LevelManager;
     };

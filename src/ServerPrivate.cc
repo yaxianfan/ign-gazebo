@@ -23,6 +23,8 @@
 
 #include <ignition/common/Console.hh>
 
+#include <ignition/fuel_tools/Interface.hh>
+
 #include <ignition/gui/Application.hh>
 
 #include "SimulationRunner.hh"
@@ -132,7 +134,7 @@ void ServerPrivate::CreateEntities()
     }
 
     this->simRunners.push_back(std::make_unique<SimulationRunner>(
-        world, this->systemLoader, this->useLevels));
+        world, this->systemLoader, this->config));
   }
 }
 
@@ -158,3 +160,8 @@ bool ServerPrivate::WorldsService(ignition::msgs::StringMsg_V &_res)
   return true;
 }
 
+//////////////////////////////////////////////////
+std::string ServerPrivate::FetchResource(const std::string &_uri)
+{
+  return fuel_tools::fetchResourceWithClient(_uri, *this->fuelClient.get());
+}
