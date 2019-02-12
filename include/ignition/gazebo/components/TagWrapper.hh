@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+//#include <iostream>
 
 #include <ignition/gazebo/components/Component.hh>
 #include <ignition/gazebo/config.hh>
@@ -59,6 +60,30 @@ namespace components
 
     /// \brief Component id.
     public: inline static uint64_t id = 0;
+
+    /*
+    /// \brief Stream insertion operator
+    /// \param _out output stream
+    /// \param _tw TagWrapper to output
+    /// \return the stream
+    public: friend std::ostream &operator<<(
+        std::ostream &_out,
+        const TagWrapper<Identifier> &/*_tw*/)
+    {
+      _out << "serialized_component";
+      return _out;
+    }
+
+    /// \brief Stream extraction operator
+    /// \param _in input stream
+    /// \param _tw TagWrapper to read values into
+    /// \return the stream
+    public: friend std::istream &operator>>(
+                std::istream &_in, TagWrapper<Identifier> &/*_tw*/)
+    {
+      return _in;
+    }
+    */
   };
 
   //////////////////////////////////////////////////

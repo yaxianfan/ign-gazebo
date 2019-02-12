@@ -19,7 +19,7 @@
 
 #include <string>
 #include <ignition/gazebo/components/Factory.hh>
-#include <ignition/gazebo/components/SimpleWrapper.hh>
+#include <ignition/gazebo/components/Component.hh>
 #include <ignition/gazebo/config.hh>
 
 namespace ignition
@@ -39,5 +39,4 @@ namespace components
 }
 }
 }
-
 #endif
