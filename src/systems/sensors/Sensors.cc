@@ -26,9 +26,11 @@
 #include <ignition/rendering/RenderingIface.hh>
 #include <ignition/rendering/Scene.hh>
 #include <ignition/sensors/CameraSensor.hh>
+#include <ignition/sensors/GpuLidarSensor.hh>
 #include <ignition/sensors/Manager.hh>
 
 #include "ignition/gazebo/components/Camera.hh"
+#include "ignition/gazebo/components/GpuLidar.hh"
 #include "ignition/gazebo/components/Geometry.hh"
 #include "ignition/gazebo/components/Light.hh"
 #include "ignition/gazebo/components/Link.hh"
@@ -104,7 +106,8 @@ void Sensors::PostUpdate(const UpdateInfo &_info,
 {
   // Only initialize if there are rendering sensors
   if (!this->dataPtr->initialized &&
-      _ecm.HasComponentType(_ecm.ComponentType<components::Camera>()))
+      (_ecm.HasComponentType(_ecm.ComponentType<components::Camera>()) ||
+        _ecm.HasComponentType(_ecm.ComponentType<components::GpuLidar>())))
   {
     this->dataPtr->engine =
         ignition::rendering::engine(this->dataPtr->engineName);
@@ -225,6 +228,27 @@ void SensorsPrivate::CreateRenderingEntities(const EntityComponentManager &_ecm)
         return this->sceneManager.AddSensor(
             _entity, sensor->Name(), _parent->Data());
       });
+
+  // Create gpu lidar
+  _ecm.EachNew<components::GpuLidar, components::ParentEntity>(
+    [&](const Entity &_entity,
+        const components::GpuLidar *_gpuLidar,
+        const components::ParentEntity *_parent)->bool
+      {
+        auto parent = sceneManager.EntityById(_parent->Data());
+        if (!parent)
+          return false;
+        auto data = _gpuLidar->Data()->Clone();
+        std::string scopedName = parent->Name() + "::"
+            + data->Get<std::string>("name");
+        data->GetAttribute("name")->Set(scopedName);
+        data->GetAttribute("type")->Set("gpu_lidar");
+        auto sensor =
+            this->sensorManager.CreateSensor<sensors::GpuLidarSensor>(data);
+        sensor->SetParent(parent->Name());
+        return this->sceneManager.AddSensor(
+            _entity, sensor->Name(), _parent->Data());
+      });
 }
 
 //////////////////////////////////////////////////
@@ -297,6 +321,20 @@ void SensorsPrivate::UpdateRenderingEntities(const EntityComponentManager &_ecm)
         }
         return true;
       });
+
+  // Update gpu_lidar
+  _ecm.Each<components::GpuLidar, components::Pose>(
+    [&](const Entity &_entity,
+        const components::GpuLidar *,
+        const components::Pose *_pose)->bool
+      {
+        auto entity = this->sceneManager.EntityById(_entity);
+        if (entity)
+        {
+          entity->SetLocalPose(_pose->Data());
+        }
+        return true;
+      });
 }
 
 //////////////////////////////////////////////////
@@ -332,15 +370,27 @@ void SensorsPrivate::RemoveRenderingEntities(const EntityComponentManager &_ecm)
         return true;
       });
 
-  // Create cameras
+  // cameras
   _ecm.EachRemoved<components::Camera>(
     [&](const Entity &_entity, const components::Camera *)->bool
       {
         auto entity = this->sceneManager.EntityById(_entity);
         if (entity)
         {
-          auto sensorID = this->sensorManager.SensorId(entity->Name());
-          this->sensorManager.Remove(sensorID);
+          this->sensorManager.Remove(_entity);
+        }
+        this->sceneManager.RemoveEntity(_entity);
+        return true;
+      });
+
+  // gpu_lidars
+  _ecm.EachRemoved<components::GpuLidar>(
+    [&](const Entity &_entity, const components::GpuLidar *)->bool
+      {
+        auto entity = this->sceneManager.EntityById(_entity);
+        if (entity)
+        {
+          this->sensorManager.Remove(_entity);
         }
         this->sceneManager.RemoveEntity(_entity);
         return true;
