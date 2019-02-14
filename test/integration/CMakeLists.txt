@@ -8,6 +8,7 @@ set(tests
   entity_erase.cc
   events.cc
   examples_build.cc
+  gpu_lidar.cc
   imu_system.cc
   level_manager.cc
   model.cc
