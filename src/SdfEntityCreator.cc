@@ -25,8 +25,10 @@
 #include "ignition/gazebo/components/AngularVelocity.hh"
 #include "ignition/gazebo/components/Camera.hh"
 #include "ignition/gazebo/components/CanonicalLink.hh"
-#include "ignition/gazebo/components/Collision.hh"
 #include "ignition/gazebo/components/ChildLinkName.hh"
+#include "ignition/gazebo/components/Collision.hh"
+#include "ignition/gazebo/components/Contact.hh"
+#include "ignition/gazebo/components/ContactData.hh"
 #include "ignition/gazebo/components/Geometry.hh"
 #include "ignition/gazebo/components/GpuLidar.hh"
 #include "ignition/gazebo/components/Gravity.hh"
@@ -422,6 +424,15 @@ Entity SdfEntityCreator::CreateEntities(const sdf::Sensor *_sensor)
             components::AngularVelocity(math::Vector3d::Zero));
     this->dataPtr->ecm->CreateComponent(sensorEntity,
             components::LinearAcceleration(math::Vector3d::Zero));
+  }
+  else if (_sensor->Type() == sdf::SensorType::CONTACT)
+  {
+    auto elem = _sensor->Element();
+
+    this->dataPtr->ecm->CreateComponent(sensorEntity,
+            components::Contact(elem));
+    // We will let the contact system create the necessary components for
+    // physics to populate.
   }
   else
   {
