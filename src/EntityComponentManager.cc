@@ -19,8 +19,11 @@
 #include <set>
 #include <vector>
 
+#include "msgs/serialized.pb.h"
+
 #include "ignition/common/Profiler.hh"
 #include "ignition/gazebo/components/Component.hh"
+#include "ignition/gazebo/components/Factory.hh"
 #include "ignition/gazebo/EntityComponentManager.hh"
 
 using namespace ignition;
@@ -28,6 +31,12 @@ using namespace gazebo;
 
 class ignition::gazebo::EntityComponentManagerPrivate
 {
+  /// \brief Implementation of the CreateEntity function, which takes a specific
+  /// entity as input.
+  /// \param[in] _entity Entity to be created.
+  /// \return Created entity, which should match the input.
+  public: Entity CreateEntityImplementation(Entity _entity);
+
   /// \brief Recursively insert an entity and all its descendants into a given
   /// set.
   /// \param[in] _entity Entity to be inserted.
@@ -96,15 +105,21 @@ Entity EntityComponentManager::CreateEntity()
     return entity;
   }
 
-  this->dataPtr->entities.AddVertex(std::to_string(entity), entity, entity);
+  return this->dataPtr->CreateEntityImplementation(entity);
+}
+
+/////////////////////////////////////////////////
+Entity EntityComponentManagerPrivate::CreateEntityImplementation(Entity _entity)
+{
+  this->entities.AddVertex(std::to_string(_entity), _entity, _entity);
 
   // Add entity to the list of newly created entities
   {
-    std::lock_guard<std::mutex> lock(this->dataPtr->entityCreatedMutex);
-    this->dataPtr->newlyCreatedEntities.insert(entity);
+    std::lock_guard<std::mutex> lock(this->entityCreatedMutex);
+    this->newlyCreatedEntities.insert(_entity);
   }
 
-  return entity;
+  return _entity;
 }
 
 /////////////////////////////////////////////////
@@ -351,6 +366,14 @@ ComponentKey EntityComponentManager::CreateComponentImplementation(
     const Entity _entity, const ComponentTypeId _componentTypeId,
     const components::BaseComponent *_data)
 {
+  // Create the component storage if one does not exist for
+  // the component type.
+  if (!this->HasComponentType(_componentTypeId))
+  {
+//    this->RegisterComponentType(_componentTypeId,
+//          new ComponentStorage<ComponentTypeT>());
+  }
+
   // Instantiate the new component.
   std::pair<ComponentId, bool> componentIdPair =
     this->dataPtr->components[_componentTypeId]->Create(_data);
@@ -606,4 +629,100 @@ void EntityComponentManager::RebuildViews()
       }
     }
   }
+}
+
+namespace ignition
+{
+namespace gazebo
+{
+inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE
+{
+
+//////////////////////////////////////////////////
+std::ostream &operator<<(std::ostream &_out, const EntityComponentManager &_ecm)
+{
+  gazebo::msgs::SerializedState stateMsg;
+  for (const auto &entity: _ecm.dataPtr->entityComponents)
+  {
+    auto entityMsg = stateMsg.add_entities();
+    entityMsg->set_id(entity.first);
+
+    for (const auto &compKey : entity.second)
+    {
+      auto compMsg = entityMsg->add_components();
+
+      auto compBase = _ecm.ComponentImplementation(entity.first, compKey.first);
+      compMsg->set_type(compBase->TypeId());
+
+      std::ostringstream ostr;
+      ostr << *compBase;
+
+      compMsg->set_component(ostr.str());
+    }
+  }
+
+  stateMsg.SerializeToOstream(&_out);
+  return _out;
+}
+
+//////////////////////////////////////////////////
+std::istream &operator>>(std::istream &_in, EntityComponentManager &_ecm)
+{
+  gazebo::msgs::SerializedState stateMsg;
+  stateMsg.ParseFromIstream(&_in);
+igndbg << stateMsg.DebugString() << std::endl;
+
+  for (int e = 0; e < stateMsg.entities_size(); ++e)
+  {
+    Entity entity{stateMsg.entities(e).id()};
+
+    // Create entity if it doesn't exist
+    if (!_ecm.HasEntity(entity))
+    {
+      _ecm.dataPtr->CreateEntityImplementation(entity);
+    }
+
+    // Update / add / remove components
+    for (int c = 0; c < stateMsg.entities(e).components_size(); ++c)
+    {
+      auto compMsg = stateMsg.entities(e).components(c);
+
+      // Create component
+      auto newComp = components::Factory::Instance()->New(compMsg.type());
+
+      if (nullptr == newComp)
+      {
+        ignwarn << "Failed to deserialize component of type [" << compMsg.type()
+                << "]" << std::endl;
+        continue;
+      }
+
+      std::istringstream istr(compMsg.component());
+      istr >> *newComp.get();
+
+      // Get type id
+      auto typeId = newComp->TypeId();
+
+      // Get Component
+      auto comp = _ecm.ComponentImplementation(entity, typeId);
+
+      // Create if new
+      if (nullptr == comp)
+      {
+        _ecm.CreateComponentImplementation(entity, typeId, newComp.get());
+      }
+      // Update component value
+      else
+      {
+        *comp = *newComp.get();
+      }
+    }
+  }
+
+  // Remove entities and components which don't exist in new state
+
+  return _in;
+}
+}
+}
 }
