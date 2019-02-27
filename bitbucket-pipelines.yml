@@ -21,9 +21,7 @@ pipelines:
             libignition-common3-dev
             libignition-gui-dev
             libignition-math6-eigen3-dev
-            libignition-msgs3-dev
             libignition-plugin-dev
-            libignition-physics-dev
             libignition-rendering-dev
             libignition-sensors-dev
             libignition-tools-dev
@@ -41,15 +39,15 @@ pipelines:
           # - make -j4 install
           # - cd ../..
           # Ignition msgs (uncomment if a specific branch is needed)
-          # - apt install -y
-          #   libprotobuf-dev protobuf-compiler libprotoc-dev
-          # - hg clone http://bitbucket.org/ignitionrobotics/ign-msgs -b gz11
-          # - cd ign-msgs
-          # - mkdir build
-          # - cd build
-          # - cmake .. -DBUILD_TESTING=false
-          # - make -j4 install
-          # - cd ../..
+          - apt install -y
+            libprotobuf-dev protobuf-compiler libprotoc-dev
+          - hg clone http://bitbucket.org/ignitionrobotics/ign-msgs -b contacts_use_entity
+          - cd ign-msgs
+          - mkdir build
+          - cd build
+          - cmake .. -DBUILD_TESTING=false -DCMAKE_INSTALL_PREFIX=/usr
+          - make -j4 install
+          - cd ../..
           # Ignition cmake (uncomment if a specific branch is needed)
           # - hg clone http://bitbucket.org/ignitionrobotics/ign-cmake -b gz11
           # - cd ign-cmake
@@ -95,6 +93,16 @@ pipelines:
           # - cmake .. -DBUILD_TESTING=false
           # - make -j4 install
           # - cd ../..
+          # Ignition physics (uncomment if a specific branch is needed)
+          - apt install -y
+            libdart6-dev libdart6-collision-bullet-dev libdart6-collision-ode-dev libdart6-utils-urdf-dev
+          - hg clone http://bitbucket.org/ignitionrobotics/ign-physics -b contacts_feature
+          - cd ign-physics
+          - mkdir build
+          - cd build
+          - cmake .. -DBUILD_TESTING=false -DCMAKE_INSTALL_PREFIX=/usr
+          - make -j4 install
+          - cd ../..
           # Ignition Gazebo
           - mkdir build
           - cd build
