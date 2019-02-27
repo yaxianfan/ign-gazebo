@@ -58,6 +58,7 @@
 #include "ignition/gazebo/EntityComponentManager.hh"
 // Components
 #include "ignition/gazebo/components/AngularVelocity.hh"
+#include "ignition/gazebo/components/AxisAlignedBoundingBox.hh"
 #include "ignition/gazebo/components/CanonicalLink.hh"
 #include "ignition/gazebo/components/ChildLinkName.hh"
 #include "ignition/gazebo/components/Collision.hh"
@@ -92,6 +93,7 @@ class ignition::gazebo::systems::PhysicsPrivate
 {
   public: using MinimumFeatureList = ignition::physics::FeatureList<
           ignition::physics::LinkFrameSemantics,
+          ignition::physics::GetShapeBoundingBox,
           ignition::physics::ForwardStep,
           ignition::physics::GetEntities,
           ignition::physics::RemoveEntities,
@@ -187,6 +189,8 @@ Physics::Physics() : System(), dataPtr(std::make_unique<PhysicsPrivate>())
       this->dataPtr->engine = ignition::physics::RequestEngine<
         ignition::physics::FeaturePolicy3d,
         PhysicsPrivate::MinimumFeatureList>::From(plugin);
+      if (!this->dataPtr->engine)
+        ignerr << "Failed to create the " << className << " physics engine.\n";
     }
     else
     {
@@ -556,9 +560,11 @@ void PhysicsPrivate::Step(const std::chrono::steady_clock::duration &_dt)
 void PhysicsPrivate::UpdateSim(EntityComponentManager &_ecm) const
 {
   IGN_PROFILE("PhysicsPrivate::UpdateSim");
-  _ecm.Each<components::Link, components::Pose, components::ParentEntity>(
+  _ecm.Each<components::Link, components::Pose, components::ParentEntity,
+            components::AxisAlignedBoundingBox>(
       [&](const Entity &_entity, components::Link * /*_link*/,
-          components::Pose *_pose, components::ParentEntity *_parent)->bool
+          components::Pose *_pose, components::ParentEntity *_parent,
+          components::AxisAlignedBoundingBox *_boundingBox)->bool
       {
         auto linkIt = this->entityLinkMap.find(_entity);
         if (linkIt != this->entityLinkMap.end())
@@ -570,7 +576,47 @@ void PhysicsPrivate::UpdateSim(EntityComponentManager &_ecm) const
           auto parentPose =
               _ecm.Component<components::Pose>(_parent->Data());
 
-          auto worldPose = linkIt->second->FrameDataRelativeToWorld().pose;
+          math::Pose3d worldPose = math::eigen3::convert(
+            linkIt->second->FrameDataRelativeToWorld().pose);
+
+          // Update the bounding box information for the link and the parent
+          // model.
+          // \todo(nkoenig) This block of code should ideally be computed
+          // only when requested. It's not needed every iteration of
+          // simulation. This could be done using:
+          // 1. Simulation starts, no models have BoundingBox components yet,
+          //    so Physics doesn't calculate them.
+          // 2. User sends request, providing a callback to be called on
+          //    response.
+          // 3. SceneBroadcaster receives the request, but doesn't call the
+          //    response callback yet. Instead, it creates a new BoundingBox
+          //    component for the given model.
+          // 4. Physics sees there's now a BB component and fills it.
+          // 5. SceneBroadcaster gets the info from the component, publishes
+          //    the response to the user, and deletes the component.
+          // 6. The model doesn't have a BB anymore, so physics will not fill
+          //    it from now on.
+          {
+            std::size_t shapeCount = linkIt->second->GetShapeCount();
+            math::AxisAlignedBox boundingBox;
+            for (std::size_t shapeI = 0; shapeI < shapeCount; ++shapeI)
+            {
+              math::AxisAlignedBox b = math::eigen3::convert(
+                  linkIt->second->GetShape(
+                    shapeI)->GetAxisAlignedBoundingBox());
+              b.Min() = b.Min() + worldPose.Pos();
+              b.Max() = b.Max() + worldPose.Pos();
+
+              boundingBox += b;
+            }
+            *_boundingBox = components::AxisAlignedBoundingBox(boundingBox);
+
+            components::AxisAlignedBoundingBox *modelBoundingBox =
+              _ecm.Component<components::AxisAlignedBoundingBox>(
+                  _parent->Data());
+            *modelBoundingBox = components::AxisAlignedBoundingBox(
+                modelBoundingBox->Data() + boundingBox);
+          }
 
           // if the parentPose is a nullptr, something is wrong with ECS
           // creation
@@ -591,12 +637,12 @@ void PhysicsPrivate::UpdateSim(EntityComponentManager &_ecm) const
             // to premultiply it by the inverse of the initial transform of
             // the link w.r.t to its model.
             *parentPose = components::Pose(_pose->Data().Inverse() +
-                                           math::eigen3::convert(worldPose));
+                                           worldPose);
           }
           else
           {
             // Compute the relative pose of this link from the model
-            *_pose = components::Pose(math::eigen3::convert(worldPose) +
+            *_pose = components::Pose(worldPose +
                                       parentPose->Data().Inverse());
           }
         }
