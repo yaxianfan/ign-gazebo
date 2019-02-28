@@ -208,6 +208,9 @@ class ignition::gazebo::ServerConfigPrivate
   /// \brief Use the level system
   public: bool useLevels{false};
 
+  /// \brief Use the distributed simulation system
+  public: bool useDistSim{false};
+
   /// \brief Path to where simulation resources, such as models downloaded
   /// from fuel.ignitionrobotics.org, should be stored.
   public: std::string resourceCache = "";
@@ -296,6 +299,18 @@ bool ServerConfig::UseLevels() const
 void ServerConfig::SetUseLevels(const bool _levels)
 {
   this->dataPtr->useLevels = _levels;
+}
+
+/////////////////////////////////////////////////
+bool ServerConfig::UseDistSim() const
+{
+  return this->dataPtr->useDistSim;
+}
+
+/////////////////////////////////////////////////
+void ServerConfig::SetUseDistSim(const bool _distSim)
+{
+  this->dataPtr->useDistSim = _distSim;
 }
 
 /////////////////////////////////////////////////
