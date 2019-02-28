@@ -28,8 +28,6 @@ namespace gazebo
 {
 namespace systems
 {
-  // Inline bracket to help doxygen filtering.
-  inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
   // Forward declarations.
   class UserCommandsPrivate;
 
@@ -74,7 +72,6 @@ namespace systems
     /// \brief Private data pointer.
     private: std::unique_ptr<UserCommandsPrivate> dataPtr;
   };
-  }
 }
 }
 }

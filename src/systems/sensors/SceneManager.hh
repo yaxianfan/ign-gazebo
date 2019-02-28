@@ -46,8 +46,6 @@ namespace gazebo
 {
 namespace systems
 {
-  inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
-  //
   // Forward declaration
   class SceneManagerPrivate;
 
@@ -143,7 +141,6 @@ namespace systems
     /// \brief Pointer to private data class
     private: std::unique_ptr<SceneManagerPrivate> dataPtr;
   };
-  }
 }
 }
 }

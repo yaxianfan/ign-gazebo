@@ -28,8 +28,6 @@ namespace gazebo
 {
 namespace systems
 {
-  // Inline bracket to help doxygen filtering.
-  inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
   // Forward declarations.
   class MagnetometerPrivate;
   class MagnetometerSensor;
@@ -59,7 +57,6 @@ namespace systems
     /// \brief Private data pointer.
     private: std::unique_ptr<MagnetometerPrivate> dataPtr;
   };
-  }
 }
 }
 }
