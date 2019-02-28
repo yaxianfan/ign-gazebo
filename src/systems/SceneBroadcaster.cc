@@ -22,6 +22,7 @@
 #include <ignition/plugin/RegisterMore.hh>
 #include <ignition/transport/Node.hh>
 
+#include "ignition/gazebo/components/AxisAlignedBoundingBox.hh"
 #include "ignition/gazebo/components/Geometry.hh"
 #include "ignition/gazebo/components/Light.hh"
 #include "ignition/gazebo/components/Link.hh"
@@ -57,9 +58,16 @@ class ignition::gazebo::systems::SceneBroadcasterPrivate
   public: bool SceneInfoService(ignition::msgs::Scene &_res);
 
   /// \brief Callback for scene graph service.
-  /// \param[out] _res Response containing the the scene graph in DOT format.
+  /// \param[out] _res Response containing the scene graph in DOT format.
   /// \return True if successful.
   public: bool SceneGraphService(ignition::msgs::StringMsg &_res);
+
+  /// \brief Callback for model info service.
+  /// \param[in] _res Request containing model name.
+  /// \param[out] _res Response containing the model's details.
+  /// \return True if successful.
+  public: bool ModelInfoService(const msgs::StringMsg &_req,
+              msgs::Model &_rep);
 
   /// \brief Updates the scene graph when entities are added
   /// \param[in] _manager The entity component manager
@@ -285,6 +293,12 @@ void SceneBroadcasterPrivate::SetupTransport(const std::string &_worldName)
   ignmsg << "Serving graph information on [" << opts.NameSpace() << "/"
          << graphService << "]" << std::endl;
 
+  // Model info topic
+  std::string modelInfoTopic{"/world/" + _worldName + "/model/info"};
+
+  this->node->Advertise(modelInfoTopic,
+      &SceneBroadcasterPrivate::ModelInfoService, this);
+
   // Scene info topic
   std::string sceneTopic{"/world/" + _worldName + "/scene/info"};
 
@@ -361,16 +375,19 @@ void SceneBroadcasterPrivate::SceneGraphAddEntities(
 
   // Models
   _manager.EachNew<components::Model, components::Name,
-                   components::ParentEntity, components::Pose>(
+                   components::ParentEntity, components::Pose,
+                   components::AxisAlignedBoundingBox>(
       [&](const Entity &_entity, const components::Model *,
           const components::Name *_nameComp,
           const components::ParentEntity *_parentComp,
-          const components::Pose *_poseComp) -> bool
+          const components::Pose *_poseComp,
+          const components::AxisAlignedBoundingBox *_aaBoxComp) -> bool
       {
         auto modelMsg = std::make_shared<msgs::Model>();
         modelMsg->set_id(_entity);
         modelMsg->set_name(_nameComp->Data());
         modelMsg->mutable_pose()->CopyFrom(msgs::Convert(_poseComp->Data()));
+        msgs::Set(modelMsg->mutable_bounding_box(), _aaBoxComp->Data());
 
         // Add to graph
         newGraph.AddVertex(_nameComp->Data(), modelMsg, _entity);
@@ -631,6 +648,22 @@ void SceneBroadcasterPrivate::RemoveFromGraph(const Entity _entity,
   _graph.RemoveVertex(_entity);
 }
 
+//////////////////////////////////////////////////
+bool SceneBroadcasterPrivate::ModelInfoService(const msgs::StringMsg &_req,
+                                               msgs::Model &_rep)
+{
+  const math::graph::VertexRef_M<
+    std::shared_ptr<google::protobuf::Message>> verts =
+    this->sceneGraph.Vertices(_req.data());
+
+  if (!verts.empty())
+  {
+    _rep.CopyFrom(*verts.begin()->second.get().Data().get());
+    return true;
+  }
+
+  return false;
+}
 
 IGNITION_ADD_PLUGIN(ignition::gazebo::systems::SceneBroadcaster,
                     ignition::gazebo::System,
