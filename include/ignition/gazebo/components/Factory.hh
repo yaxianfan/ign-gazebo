@@ -96,27 +96,20 @@ namespace components
   {
     /// \brief Register a component so that the factory can create instances
     /// of the component and its storage based on an ID.
-    /// \param[in] _type Type of component to register.
     /// \param[in] _compDesc Object to manage the creation of ComponentTypeT
     ///  objects.
     /// \param[in] _storageDesc Object to manage the creation of storages for
     /// objects of type ComponentTypeT.
     /// \tparam ComponentTypeT Type of component to register.
     public: template<typename ComponentTypeT>
-    void Register(const std::string &_type, ComponentDescriptorBase *_compDesc,
+    void Register(ComponentDescriptorBase *_compDesc,
       StorageDescriptorBase *_storageDesc)
     {
-      auto typeHash = ignition::common::hash64(_type);
-
-      // Every time a plugin which uses a component type is loaded, it attempts
-      // to register it again, so we skip it.
-      if (ComponentTypeT::typeId != 0)
+      // Already registered
+      if (this->compsById.find(ComponentTypeT::typeId) != this->compsById.end())
       {
         return;
       }
-
-      // Initialize static member variable
-      ComponentTypeT::typeId = typeHash;
 
       // Keep track of all types
       this->compsById[ComponentTypeT::typeId] = _compDesc;
@@ -129,12 +122,6 @@ namespace components
     public: template<typename ComponentTypeT>
     void Unregister()
     {
-      // Not registered
-      if (ComponentTypeT::typeId == 0)
-      {
-        return;
-      }
-
       {
         auto it = this->compsById.find(ComponentTypeT::typeId);
         if (it != this->compsById.end())
@@ -152,8 +139,6 @@ namespace components
           this->storagesById.erase(it);
         }
       }
-
-      ComponentTypeT::typeId = 0;
     }
 
     /// \brief Create a new instance of a component.
@@ -240,17 +225,20 @@ namespace components
   /// \param[in] _compType Component type name.
   /// \param[in] _classname Class name for component.
   #define IGN_GAZEBO_REGISTER_COMPONENT(_compType, _classname) \
+  template<> \
+  const ignition::gazebo::ComponentTypeId  \
+    ignition::gazebo::components::Component< \
+        _classname::Type, _classname::Tag>::typeId = \
+        ignition::common::hash64(_compType); \
   class IGNITION_GAZEBO_VISIBLE IgnGazeboComponents##_classname \
   { \
     public: IgnGazeboComponents##_classname() \
     { \
-      if (_classname::typeId != 0) \
-        return; \
       using namespace ignition;\
       using Desc = gazebo::components::ComponentDescriptor<_classname>; \
       using StorageDesc = gazebo::components::StorageDescriptor<_classname>; \
       gazebo::components::Factory::Instance()->Register<_classname>(\
-        _compType, new Desc(), new StorageDesc());\
+        new Desc(), new StorageDesc());\
     } \
   }; \
   static IgnGazeboComponents##_classname\

@@ -27,6 +27,7 @@
 #include <sdf/Sphere.hh>
 
 #include "ignition/gazebo/test_config.hh"
+#include "ignition/gazebo/components/Factory.hh"
 #include "ignition/gazebo/components/CanonicalLink.hh"
 #include "ignition/gazebo/components/ChildLinkName.hh"
 #include "ignition/gazebo/components/Collision.hh"
@@ -46,18 +47,13 @@
 #include "ignition/gazebo/components/Visual.hh"
 #include "ignition/gazebo/components/World.hh"
 #include "ignition/gazebo/Events.hh"
+#include "ignition/gazebo/config.hh"
 #include "SimulationRunner.hh"
 
 using namespace ignition;
 using namespace gazebo;
 using namespace components;
 
-namespace ignition
-{
-namespace gazebo
-{
-namespace components
-{
 using IntComponent = components::Component<int, class IntComponentTag>;
 IGN_GAZEBO_REGISTER_COMPONENT("ign_gazebo_components.IntComponent",
     IntComponent)
@@ -65,9 +61,6 @@ IGN_GAZEBO_REGISTER_COMPONENT("ign_gazebo_components.IntComponent",
 using DoubleComponent = components::Component<double, class DoubleComponentTag>;
 IGN_GAZEBO_REGISTER_COMPONENT("ign_gazebo_components.DoubleComponent",
     DoubleComponent)
-}
-}
-}
 
 class SimulationRunnerTest : public ::testing::TestWithParam<int>
 {
