@@ -17,18 +17,18 @@
 
 #include "LogRecord.hh"
 
-#include <ignition/msgs/pose_v.pb.h>
 #include <sys/stat.h>
 
 #include <string>
 #include <fstream>
+#include <filesystem>
 #include <ctime>
 
 #include <ignition/common/Filesystem.hh>
-#include <ignition/common/Util.hh>
 #include <ignition/msgs/Utility.hh>
 #include <ignition/plugin/Register.hh>
 #include <ignition/transport/log/Log.hh>
+#include <ignition/transport/log/Recorder.hh>
 
 #include "ignition/gazebo/components/Light.hh"
 #include "ignition/gazebo/components/Link.hh"
@@ -46,17 +46,23 @@ using namespace ignition::gazebo::systems;
 // Private data class.
 class ignition::gazebo::systems::LogRecordPrivate
 {
-  // Use ign-transport directly
-  /// \brief ign-transport message recorder
+  /// \brief Ignition transport recorder
   public: ignition::transport::log::Recorder recorder;
 
   /// \brief Default directory to record to
   public: std::string DefaultRecordPath();
 
   // TODO(mabelmzhang) port to ign-common Filesystem
-  /// \brief Unique file path to not overwrite existing file
+  /// \brief Generates a path for a file which doesn't collide with existing
+  /// files, by appending numbers to it (i.e. (0), (1), ...)
+  /// \param[in] _pathAndName Full absolute path and file name up to the
+  /// file extension.
+  /// \param[in] _extension File extension, such as "ddf".
+  /// \return Full path with name and extension, which doesn't collide with
+  /// existing files
   public: std::string UniqueFilePath(const std::string &_pathAndName,
     const std::string &_extension);
+
   /// \brief Unique directory path to not overwrite existing file
   public: std::string UniqueDirectoryPath(const std::string &_dir);
 };
@@ -91,6 +97,7 @@ std::string LogRecordPrivate::UniqueFilePath(const std::string &_pathAndName,
   return result;
 }
 
+//////////////////////////////////////////////////
 std::string LogRecordPrivate::UniqueDirectoryPath(const std::string &_dir)
 {
   std::string result = _dir;
@@ -180,21 +187,19 @@ void LogRecord::Configure(const Entity &/*_entity*/,
 
   ignmsg << "Recording to log file " << logPath << std::endl;
 
-
   // Use ign-transport directly
-
   this->dataPtr->recorder.AddTopic("/world/default/pose/info");
   // this->dataPtr->recorder.AddTopic(std::regex(".*"));
 
   // This calls Log::Open() and loads sql schema
   this->dataPtr->recorder.Start(logPath);
 
-
   // Record SDF as a string.
 
   // TODO(mabelmzhang): For now, just dumping a big string to a text file,
-  //   until we have a message for the SDF.
+  // until we have a message for the SDF.
   std::ofstream ofs(sdfPath);
+
   // Go up to root of SDF, to output entire SDF file
   sdf::ElementPtr sdfRoot = _sdf->GetParent();
   while (sdfRoot->GetParent() != nullptr)
@@ -202,7 +207,8 @@ void LogRecord::Configure(const Entity &/*_entity*/,
     sdfRoot = sdfRoot->GetParent();
   }
   ofs << sdfRoot->ToString("");
-  ignmsg << "Outputted SDF to " << sdfPath << std::endl;
+
+  ignmsg << "Save initial SDF file to [" << sdfPath << "]" << std::endl;
 }
 
 IGNITION_ADD_PLUGIN(ignition::gazebo::systems::LogRecord,
