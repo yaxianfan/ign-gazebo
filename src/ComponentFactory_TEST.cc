@@ -34,26 +34,25 @@ class ComponentFactoryTest : public ::testing::Test
   }
 };
 
+// Create a custom component.
+using MyCustom = components::Component<components::NoData, class MyCustomTag>;
+template<>
+const ComponentTypeId components::Component<
+    MyCustom::Type, MyCustom::Tag>::typeId =  // NOLINT
+  ignition::common::hash64("ign_gazebo_components.MyCustom");
+
 /////////////////////////////////////////////////
 TEST_F(ComponentFactoryTest, Register)
 {
   auto factory = components::Factory::Instance();
-
-  // Create a custom component.
-  using MyCustom = components::Component<components::NoData, class MyCustomTag>;
-
-  // Check it has no type id yet
-  EXPECT_EQ(0u, MyCustom::typeId);
+  EXPECT_NE(0u, MyCustom::typeId);
 
   // Store number of registered component types
   auto registeredCount = factory->TypeIds().size();
 
-  factory->Register<MyCustom>("ign_gazebo_components.MyCustom",
+  factory->Register<MyCustom>(
       new components::ComponentDescriptor<MyCustom>(),
       new components::StorageDescriptor<MyCustom>());
-
-  // Check now it has type id
-  EXPECT_NE(0u, MyCustom::typeId);
 
   // Check factory knows id
   auto ids = factory->TypeIds();
@@ -65,7 +64,6 @@ TEST_F(ComponentFactoryTest, Register)
 
   // Check it has no type id yet
   ids = factory->TypeIds();
-  EXPECT_EQ(0u, MyCustom::typeId);
   EXPECT_EQ(registeredCount, ids.size());
 }
 
