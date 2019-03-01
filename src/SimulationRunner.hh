@@ -49,6 +49,7 @@
 #include "ignition/gazebo/network/NetworkManager.hh"
 
 #include "LevelManager.hh"
+#include "SyncManager.hh"
 
 using namespace std::chrono_literals;
 
@@ -104,8 +105,8 @@ namespace ignition
       /// \param[in] _systemLoader Reference to system manager.
       /// \param[in] _useLevels Whether to use levles or not. False by default.
       public: explicit SimulationRunner(const sdf::World *_world,
-                                 const SystemLoaderPtr &_systemLoader,
-                                 const ServerConfig &_config = ServerConfig());
+                                const SystemLoaderPtr &_systemLoader,
+                                const ServerConfig &_config = ServerConfig());
 
       /// \brief Destructor.
       public: virtual ~SimulationRunner();
@@ -292,6 +293,9 @@ namespace ignition
       /// \brief Manager of distributing/receiving network work.
       private: std::unique_ptr<NetworkManager> networkMgr;
 
+      /// \brief Manager of network sync.
+      private: std::unique_ptr<SyncManager> syncMgr;
+
       /// \brief A pool of worker threads.
       private: common::WorkerPool workerPool{2};
 
@@ -336,6 +340,9 @@ namespace ignition
       /// \brief Connection to the pause event.
       private: ignition::common::ConnectionPtr pauseConn;
 
+      /// \brief Connection to the stop event.
+      private: ignition::common::ConnectionPtr stopConn;
+
       /// \brief Connection to the load plugins event.
       private: common::ConnectionPtr loadPluginsConn;
 
@@ -366,6 +373,7 @@ namespace ignition
       public: ServerConfig serverConfig;
 
       friend class LevelManager;
+      friend class SyncManager;
     };
     }
   }
