@@ -1,77 +1,37 @@
 <?xml version="1.0" ?>
 <!--
-  Try inserting a model:
+This is an example demonstrating the use of the TouchPlugin.  The plugin
+requires that the Contact system be loaded and contact sensors be placed in at
+least one link on the model on which this plugin is attached.
 
-ign service -s /world/empty/create \
---reqtype ignition.msgs.EntityFactory \
---reptype ignition.msgs.Boolean \
---timeout 300 \
---req 'sdf: '\
-'"<?xml version=\"1.0\" ?>'\
-'<sdf version=\"1.6\">'\
-'<model name=\"spawned_model\">'\
-'<link name=\"link\">'\
-'<visual name=\"visual\">'\
-'<geometry><sphere><radius>1.0</radius></sphere></geometry>'\
-'</visual>'\
-'<collision name=\"visual\">'\
-'<geometry><sphere><radius>1.0</radius></sphere></geometry>'\
-'</collision>'\
-'</link>'\
-'</model>'\
-'</sdf>" '\
-'pose: {position: {z: 10}} '\
-'name: "new_name" '\
-'allow_renaming: true'
+The plugin's parameters are documented in src/systems/touchplugin/TouchPlugin.hh
 
-  Then try deleting it:
+If the plugin is not enabled by default send this command to enable
+  ign service -s /white_touches_only_green/enable \
+  --reqtype ignition.msgs.Boolean \
+  --reptype ignition.msgs.Empty \
+  --timeout 3000 \
+  --req 'data:true'
 
-ign service -s /world/empty/remove \
---reqtype ignition.msgs.Entity \
---reptype ignition.msgs.Boolean \
---timeout 300 \
---req 'name: "spawned_model" type: MODEL'
+The output of the plugin is via
 
-  Try inserting a light:
-
-ign service -s /world/empty/create --reqtype ignition.msgs.EntityFactory --reptype ignition.msgs.Boolean --timeout 300 --req 'sdf: '\
-'"<?xml version=\"1.0\" ?>'\
-'<sdf version=\"1.6\">'\
-'<light name=\"spawned_light\" type=\"directional\">'\
-'<pose>0 0 10 0.1 1.0 0</pose>'\
-'</light>'\
-'</sdf>"'
-
-  Then try deleting it:
-
-ign service -s /world/empty/remove \
---reqtype ignition.msgs.Entity \
---reptype ignition.msgs.Boolean \
---timeout 300 \
---req 'name: "spawned_light" type: LIGHT'
+  ign topic -e -t /white_touches_only_green/touched
 
 -->
+
 <sdf version="1.6">
-  <world name="empty">
-    <physics name="1ms" type="ode">
-      <max_step_size>0.001</max_step_size>
-      <real_time_factor>1.0</real_time_factor>
-    </physics>
+  <world name="touch">
     <plugin
       filename="libignition-gazebo-physics-system.so"
       name="ignition::gazebo::systems::Physics">
     </plugin>
     <plugin
-      filename="libignition-gazebo-user-commands-system.so"
-      name="ignition::gazebo::systems::UserCommands">
-    </plugin>
-    <plugin
-      filename="libignition-gazebo-scene-broadcaster-system.so"
-      name="ignition::gazebo::systems::SceneBroadcaster">
-    </plugin>
-    <plugin
       filename="libignition-gazebo-contact-system.so"
       name="ignition::gazebo::systems::Contact">
+    </plugin>
+    <plugin
+      filename="libignition-gazebo-systems.so"
+      name="ignition::gazebo::systems::SceneBroadcaster">
     </plugin>
 
     <gui fullscreen="0">
@@ -84,15 +44,15 @@ ign service -s /world/empty/remove \
           <property type="string" key="state">docked</property>
         </ignition-gui>
 
-        <engine>ogre2</engine>
+        <engine>ogre</engine>
         <scene>scene</scene>
         <ambient_light>0.4 0.4 0.4</ambient_light>
         <background_color>0.8 0.8 0.8</background_color>
         <camera_pose>-6 0 6 0 0.5 0</camera_pose>
-        <service>/world/empty/scene/info</service>
-        <pose_topic>/world/empty/pose/info</pose_topic>
-        <scene_topic>/world/empty/scene/info</scene_topic>
-        <deletion_topic>/world/empty/scene/deletion</deletion_topic>
+        <service>/world/touch/scene/info</service>
+        <pose_topic>/world/touch/pose/info</pose_topic>
+        <scene_topic>/world/touch/scene/info</scene_topic>
+        <deletion_topic>/world/touch/scene/deletion</deletion_topic>
       </plugin>
 
       <!-- World control -->
@@ -115,8 +75,8 @@ ign service -s /world/empty/remove \
         <play_pause>true</play_pause>
         <step>true</step>
         <start_paused>true</start_paused>
-        <service>/world/empty/control</service>
-        <stats_topic>/world/empty/stats</stats_topic>
+        <service>/world/touch/control</service>
+        <stats_topic>/world/touch/stats</stats_topic>
 
       </plugin>
 
@@ -141,17 +101,16 @@ ign service -s /world/empty/remove \
         <real_time>true</real_time>
         <real_time_factor>true</real_time_factor>
         <iterations>true</iterations>
-        <topic>/world/empty/stats</topic>
+        <topic>/world/touch/stats</topic>
 
       </plugin>
 
     </gui>
-
     <light type="directional" name="sun">
       <cast_shadows>true</cast_shadows>
       <pose>0 0 10 0 0 0</pose>
-      <diffuse>0.8 0.8 0.8 1</diffuse>
-      <specular>0.2 0.2 0.2 1</specular>
+      <diffuse>1 1 1 1</diffuse>
+      <specular>0.5 0.5 0.5 1</specular>
       <attenuation>
         <range>1000</range>
         <constant>0.9</constant>
@@ -188,5 +147,66 @@ ign service -s /world/empty/remove \
       </link>
     </model>
 
+    <model name="white_box">
+      <pose>0 0 4 0 0 0</pose>
+
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.5</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.5</size>
+            </box>
+          </geometry>
+        </visual>
+
+        <sensor name="white_box_sensor" type="contact">
+          <contact>
+            <collision>collision</collision>
+          </contact>
+        </sensor>
+
+      </link>
+
+      <plugin
+        filename="libignition-gazebo-touchplugin-system.so"
+        name="ignition::gazebo::systems::TouchPlugin">
+        <target>green_box_for_white</target>
+        <time>3</time>
+        <namespace>white_touches_only_green</namespace>
+        <enabled>true</enabled>
+      </plugin>
+    </model>
+
+    <model name="green_box_for_white">
+      <pose>0 0 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1 1 1</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1 1 1</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0 1 0 1</ambient>
+            <emissive>0 1 0 1</emissive>
+          </material>
+        </visual>
+      </link>
+    </model>
   </world>
 </sdf>
+
