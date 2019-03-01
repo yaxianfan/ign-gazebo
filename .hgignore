@@ -1,0 +1,12 @@
+syntax: glob
+
+build
+build_*
+.DS_Store
+*.swp
+*.swo
+*.qmlc
+.ycm_extra_conf.py
+.git
+.gitignore
+*.orig
