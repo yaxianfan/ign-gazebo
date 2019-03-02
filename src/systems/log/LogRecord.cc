@@ -76,10 +76,10 @@ std::string LogRecordPrivate::DefaultRecordPath()
 
   std::time_t timestamp = std::time(nullptr);
 
-  std::string fsLogPath = common::joinPaths(home,
+  std::string path = common::joinPaths(home,
     ".ignition", "gazebo", "log", std::to_string(timestamp));
 
-  return fsLogPath;
+  return path;
 }
 
 //////////////////////////////////////////////////

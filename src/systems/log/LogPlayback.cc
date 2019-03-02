@@ -168,11 +168,7 @@ void LogPlaybackPrivate::ParsePose(EntityComponentManager &_ecm)
 
     // Set current pose to recorded pose
     // Use copy assignment operator
-    *_poseComp = components::Pose(math::Pose3d(
-      math::Vector3(pose.position().x(), pose.position().y(),
-                              pose.position().z()),
-      math::Quaternion(pose.orientation().w(), pose.orientation().x(),
-                 pose.orientation().y(), pose.orientation().z())));
+    *_poseComp = components::Pose(msgs::Convert(pose));
 
     return true;
   });
