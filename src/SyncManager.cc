@@ -41,10 +41,8 @@ using namespace gazebo;
 
 /////////////////////////////////////////////////
 SyncManager::SyncManager(
-  SimulationRunner * _runner, bool _useLevels,
-  bool _useDistSim)
+  SimulationRunner * _runner, bool _useDistSim)
 : runner(_runner),
-  useLevels(_useLevels),
   useDistSim(_useDistSim)
 {
   this->entityCreator = std::make_unique<SdfEntityCreator>(
@@ -106,10 +104,10 @@ void SyncManager::DistributePerformers()
         affinityMsg->set_secondary_prefix(secondaryIt->second->prefix);
 
         auto isStatic = ecm.Component<components::Static>(pid);
-        *isStatic = components::Static(true);
+        *isStatic = components::Static(false);
 
         auto isActive = ecm.Component<components::PerformerActive>(_entity);
-        *isActive = components::PerformerActive(false);
+        *isActive = components::PerformerActive(true);
 
         this->runner->entityCompMgr.CreateComponent(_entity,
         components::PerformerAffinity(secondaryIt->second->prefix));
