@@ -40,6 +40,7 @@
 #include "ignition/gazebo/components/Joint.hh"
 
 
+using namespace ignition;
 using namespace ignition::gazebo::systems;
 
 // Private data class.
@@ -141,7 +142,7 @@ void LogRecord::Configure(const Entity &/*_entity*/,
   {
     logPath = this->dataPtr->DefaultRecordPath();
     ignmsg << "Unspecified or invalid log path to record to. "
-      << "Recording to default location " << logPath << std::endl;
+      << "Recording to default location [" << logPath << "]" << std::endl;
   }
 
   // If directoriy already exists, do not overwrite
@@ -149,7 +150,7 @@ void LogRecord::Configure(const Entity &/*_entity*/,
   {
     logPath = this->dataPtr->UniqueDirectoryPath(logPath);
     ignwarn << "Log path already exist on disk! "
-      << "Recording instead to " << logPath << std::endl;
+      << "Recording instead to [" << logPath << "]" << std::endl;
   }
 
   // Create log directory
@@ -164,7 +165,7 @@ void LogRecord::Configure(const Entity &/*_entity*/,
   // Temporary for recording sdf string
   std::string sdfPath = common::joinPaths(logPath, "state.sdf");
 
-  ignmsg << "Recording to log file " << dbPath << std::endl;
+  ignmsg << "Recording to log file [" << dbPath << "]" << std::endl;
 
   // Use ign-transport directly
   this->dataPtr->recorder.AddTopic("/world/default/pose/info");
