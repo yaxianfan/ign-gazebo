@@ -20,6 +20,7 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <sstream>
 #include <string>
 #include <typeinfo>
 #include <type_traits>
@@ -386,6 +387,26 @@ namespace ignition
       /// edges point from parent to children.
       /// \return Entity graph.
       public: const EntityGraph &Entities() const;
+
+      /// \brief Stream insertion operator. This serializes the ECM's state
+      /// to a string.
+      /// \param[in] _out Output stream.
+      /// \param[in] _ecm The ECM to be streamed.
+      /// \return The stream
+      public: friend std::ostream &operator<<(std::ostream &_out,
+          const EntityComponentManager &_ecm);
+
+      /// \brief Stream extraction operator. This updates the ECM's state
+      /// from a string. The stream must contain the full state, not an
+      /// increment.
+      /// Entities and components which are in the new state but not the old one
+      /// will be created and marked as new. Likewise, entities and components
+      /// not present in the new state will be marked for removal.
+      /// \param[in] _in The input stream
+      /// \param[in] _ecm The ECM which will extract the stream.
+      /// \return The stream
+      public: friend std::istream &operator>>(std::istream &_in,
+          EntityComponentManager &_ecm);
 
       /// \brief Clear the list of newly added entities so that a call to
       /// EachAdded after this will have no entities to iterate. This function

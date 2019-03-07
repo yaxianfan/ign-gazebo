@@ -19,6 +19,8 @@
 #include <set>
 #include <vector>
 
+#include "msgs/serialized.pb.h"
+
 #include "ignition/common/Profiler.hh"
 #include "ignition/gazebo/components/Component.hh"
 #include "ignition/gazebo/components/Factory.hh"
@@ -636,4 +638,138 @@ void EntityComponentManager::RebuildViews()
       }
     }
   }
+}
+
+namespace ignition
+{
+namespace gazebo
+{
+inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE
+{
+//////////////////////////////////////////////////
+std::ostream &operator<<(std::ostream &_out, const EntityComponentManager &_ecm)
+{
+  gazebo::msgs::SerializedState stateMsg;
+  for (const auto &[entity, components] : _ecm.dataPtr->entityComponents)
+  {
+    auto entityMsg = stateMsg.add_entities();
+    entityMsg->set_id(entity);
+
+    for (const auto &[typeId, compId] : components)
+    {
+      auto compMsg = entityMsg->add_components();
+
+      auto compBase = _ecm.ComponentImplementation(entity, typeId);
+      compMsg->set_type(compBase->TypeId());
+
+      std::ostringstream ostr;
+      ostr << *compBase;
+
+      compMsg->set_component(ostr.str());
+    }
+  }
+
+  stateMsg.SerializeToOstream(&_out);
+  return _out;
+}
+
+//////////////////////////////////////////////////
+std::istream &operator>>(std::istream &_in, EntityComponentManager &_ecm)
+{
+  // Parse stream into a message
+  gazebo::msgs::SerializedState stateMsg;
+  stateMsg.ParseFromIstream(&_in);
+
+  // Remove entities and components which don't exist in new state
+  for (const auto &[entity, components] : _ecm.dataPtr->entityComponents)
+  {
+    bool hasEntity{false};
+    for (int e = 0; e < stateMsg.entities_size(); ++e)
+    {
+      if (entity != stateMsg.entities(e).id())
+      {
+        continue;
+      }
+      hasEntity = true;
+
+      for (const auto &[typeId, compId] : components)
+      {
+        bool hasComponent{false};
+        for (int c = 0; c < stateMsg.entities(e).components_size(); ++c)
+        {
+          if (typeId == stateMsg.entities(e).components(c).type())
+          {
+            hasComponent = true;
+            break;
+          }
+        }
+
+        // Remove component
+        if (!hasComponent)
+        {
+          _ecm.RemoveComponent(entity, typeId);
+        }
+      }
+    }
+
+    // Remove entity
+    if (!hasEntity)
+    {
+      _ecm.RequestRemoveEntity(entity, false);
+      continue;
+    }
+  }
+
+  // Create / update entities and components
+  for (int e = 0; e < stateMsg.entities_size(); ++e)
+  {
+    Entity entity{stateMsg.entities(e).id()};
+
+    // Create entity if it doesn't exist
+    if (!_ecm.HasEntity(entity))
+    {
+      _ecm.dataPtr->CreateEntityImplementation(entity);
+    }
+
+    // Update / add / remove components
+    for (int c = 0; c < stateMsg.entities(e).components_size(); ++c)
+    {
+      auto compMsg = stateMsg.entities(e).components(c);
+
+      // Create component
+      auto newComp = components::Factory::Instance()->New(compMsg.type());
+
+      if (nullptr == newComp)
+      {
+        ignwarn << "Failed to deserialize component of type [" << compMsg.type()
+                << "]" << std::endl;
+        continue;
+      }
+
+      std::istringstream istr(compMsg.component());
+      istr >> *newComp.get();
+
+      // Get type id
+      auto typeId = newComp->TypeId();
+
+      // Get Component
+      auto comp = _ecm.ComponentImplementation(entity, typeId);
+
+      // Create if new
+      if (nullptr == comp)
+      {
+        _ecm.CreateComponentImplementation(entity, typeId, newComp.get());
+      }
+      // Update component value
+      else
+      {
+        *comp = *newComp.get();
+      }
+    }
+  }
+
+  return _in;
+}
+}
+}
 }
