@@ -304,7 +304,7 @@ TEST_F(TouchPluginTest, SpawnedEntities)
     EXPECT_TRUE(res.data());
 
     // Run the server to actually create the entities
-    server->Run(true, 100, false);
+    this->server->Run(true, 100, false);
 
     req.set_sdf(_box2);
 

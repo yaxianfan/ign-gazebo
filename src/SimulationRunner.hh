@@ -24,6 +24,7 @@
 #include <functional>
 #include <list>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_set>
 #include <utility>
@@ -381,6 +382,9 @@ namespace ignition
 
       /// \brief Copy of the server configuration.
       public: ServerConfig serverConfig;
+
+      /// \brief Mutex to protect systems.
+      public: mutable std::recursive_mutex systemsMutex;
 
       friend class LevelManager;
       friend class SyncManager;

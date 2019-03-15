@@ -270,6 +270,7 @@ void SimulationRunner::PublishStats()
 /////////////////////////////////////////////////
 void SimulationRunner::AddSystem(const SystemPluginPtr &_system)
 {
+  std::lock_guard<std::recursive_mutex> lock(this->systemsMutex);
   this->systems.push_back(SystemInternal(_system));
 
   const auto &system = this->systems.back();
@@ -287,6 +288,7 @@ void SimulationRunner::AddSystem(const SystemPluginPtr &_system)
 /////////////////////////////////////////////////
 void SimulationRunner::UpdateSystems()
 {
+  std::lock_guard<std::recursive_mutex> lock(this->systemsMutex);
   IGN_PROFILE("SimulationRunner::UpdateSystems");
   // \todo(nkoenig)  Systems used to be updated in parallel using
   // an ignition::common::WorkerPool. There is overhead associated with
@@ -597,6 +599,7 @@ size_t SimulationRunner::EntityCount() const
 /////////////////////////////////////////////////
 size_t SimulationRunner::SystemCount() const
 {
+  std::lock_guard<std::recursive_mutex> lock(this->systemsMutex);
   return this->systems.size();
 }
 
