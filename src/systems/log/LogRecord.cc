@@ -28,6 +28,7 @@
 #include <ignition/plugin/Register.hh>
 #include <ignition/transport/log/Log.hh>
 #include <ignition/transport/log/Recorder.hh>
+#include <ignition/transport/Node.hh>
 
 #include <sdf/World.hh>
 
@@ -37,10 +38,7 @@
 #include "ignition/gazebo/components/Name.hh"
 #include "ignition/gazebo/components/Pose.hh"
 #include "ignition/gazebo/components/Visual.hh"
-
-#include "ignition/gazebo/components/ParentEntity.hh"
-#include "ignition/gazebo/components/Joint.hh"
-
+#include "ignition/gazebo/Conversions.hh"
 
 using namespace ignition;
 using namespace ignition::gazebo::systems;
@@ -48,9 +46,6 @@ using namespace ignition::gazebo::systems;
 // Private data class.
 class ignition::gazebo::systems::LogRecordPrivate
 {
-  /// \brief Ignition transport recorder
-  public: transport::log::Recorder recorder;
-
   /// \brief Default directory to record to
   public: static std::string DefaultRecordPath();
 
@@ -68,6 +63,22 @@ class ignition::gazebo::systems::LogRecordPrivate
   /// \brief Unique directory path to not overwrite existing directory
   /// \param[in] _pathAndName Full absolute path
   public: std::string UniqueDirectoryPath(const std::string &_dir);
+
+  /// \brief Clock used to timestamp recorded messages with sim time
+  /// coming from /clock topic. This is not the timestamp on the header,
+  /// rather a logging-specific stamp.
+  /// In case there's disagreement between these stamps, the one in the
+  /// header should be used.
+  public: std::unique_ptr<transport::NetworkClock> clock;
+
+  /// \brief Ignition transport recorder
+  public: transport::log::Recorder recorder;
+
+  /// \brief Transport node.
+  public: transport::Node node;
+
+  /// \brief Log publisher.
+  public: transport::Node::Publisher logPub;
 };
 
 //////////////////////////////////////////////////
@@ -187,17 +198,46 @@ void LogRecord::Configure(const Entity &/*_entity*/,
 
   // Use ign-transport directly
   sdf::ElementPtr sdfWorld = sdfRoot->GetElement("world");
-  this->dataPtr->recorder.AddTopic("/world/" +
-    sdfWorld->GetAttribute("name")->GetAsString() + "/pose/info");
-  // this->dataPtr->recorder.AddTopic(std::regex(".*"));
+  auto worldName = sdfWorld->GetAttribute("name")->GetAsString();
+  auto logTopic = "/world/" + worldName + "/log";
+
+  this->dataPtr->recorder.AddTopic(logTopic);
+
+  // Timestamp messages with sim time from clock topic
+  // Note that the message headers should also have a timestamp
+  auto clockTopic = "/world/" + worldName + "/clock";
+  this->dataPtr->clock = std::make_unique<transport::NetworkClock>(clockTopic,
+      transport::NetworkClock::TimeBase::SIM);
+  this->dataPtr->recorder.Sync(this->dataPtr->clock.get());
 
   // This calls Log::Open() and loads sql schema
   this->dataPtr->recorder.Start(dbPath);
+
+  // Publisher to log topic
+  this->dataPtr->logPub = this->dataPtr->node.Advertise<msgs::SerializedState>(
+      logTopic);
+}
+
+//////////////////////////////////////////////////
+void LogRecord::PostUpdate(const UpdateInfo &_info,
+    const EntityComponentManager &_ecm)
+{
+  if (_info.paused)
+    return;
+
+  // Get current state and timestamp it
+  auto stateMsg = _ecm.State();
+  stateMsg.mutable_header()->mutable_stamp()->CopyFrom(
+      convert<msgs::Time>(_info.simTime));
+
+  // Publish it to the log topic and let the recorder do the rest
+  this->dataPtr->logPub.Publish(stateMsg);
 }
 
 IGNITION_ADD_PLUGIN(ignition::gazebo::systems::LogRecord,
                     ignition::gazebo::System,
-                    LogRecord::ISystemConfigure)
+                    LogRecord::ISystemConfigure,
+                    LogRecord::ISystemPostUpdate)
 
 IGNITION_ADD_PLUGIN_ALIAS(ignition::gazebo::systems::LogRecord,
                           "ignition::gazebo::systems::LogRecord")
