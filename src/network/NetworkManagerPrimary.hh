@@ -64,7 +64,6 @@ namespace ignition
       using Ptr = std::unique_ptr<SecondaryControl>;
     };
 
-
     /// \class NetworkManagerPrimary NetworkManagerPrimary.hh
     ///   ignition/gazebo/network/NetworkManagerPrimary.hh
     /// \brief SimulationPrimary specific behaviors

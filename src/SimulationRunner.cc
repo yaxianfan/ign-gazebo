@@ -16,6 +16,8 @@
 */
 
 #include "SimulationRunner.hh"
+#include "network/SyncManagerPrimary.hh"
+#include "network/SyncManagerSecondary.hh"
 
 #include "ignition/common/Profiler.hh"
 
@@ -126,9 +128,6 @@ SimulationRunner::SimulationRunner(const sdf::World *_world,
       ignmsg << "Network Secondary, with namespace ["
              << this->networkMgr->Namespace() << "]." << std::endl;
     }
-
-    // Create the sync manager
-    this->syncMgr = std::make_unique<SyncManager>(this);
   }
 
   // Load the active levels
@@ -343,14 +342,27 @@ bool SimulationRunner::Run(const uint64_t _iterations)
     igndbg << "Initializing network configuration" << std::endl;
     this->networkMgr->Initialize();
 
-    if (!this->stopReceived)
+    // Create sync managers after successful network initialization
+    if (this->networkMgr->IsPrimary())
     {
-      this->syncMgr->DistributePerformers();
+      this->syncMgr = std::make_unique<SyncManagerPrimary>(
+          this->entityCompMgr, this->networkMgr.get());
+    }
+    else if (this->networkMgr->IsSecondary())
+    {
+      this->syncMgr = std::make_unique<SyncManagerSecondary>(
+          this->entityCompMgr, this->networkMgr.get());
     }
     else
     {
-      this->running = false;
-      return false;
+      ignerr << "Network manager isn't primary or secondary" << std::endl;
+      return;
+    }
+
+    // Wait for initial performer distribution
+    while (!this->syncMgr->Initialized() && !this->stopReceived)
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
   }
 
@@ -422,6 +434,8 @@ bool SimulationRunner::Run(const uint64_t _iterations)
     if (this->networkMgr)
     {
       IGN_PROFILE("NetworkSync - SendStep");
+      // TODO(louise) Consolidate NetworkManager::Step and SyncManager::Sync
+      // into a single service call.
       // \todo(anyone) Replace busy loop with a condition.
       while (this->running && !this->networkMgr->Step(this->currentInfo))
       {
@@ -460,7 +474,7 @@ bool SimulationRunner::Run(const uint64_t _iterations)
     this->entityCompMgr.ProcessRemoveEntityRequests();
 
 
-    if (this->networkMgr)
+    if (this->networkMgr && this->syncMgr)
     {
       IGN_PROFILE("NetworkSync - SecondaryAck");
 

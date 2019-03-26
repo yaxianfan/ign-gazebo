@@ -48,8 +48,8 @@
 #include "ignition/gazebo/Types.hh"
 
 #include "network/NetworkManager.hh"
+#include "network/SyncManager.hh"
 #include "LevelManager.hh"
-#include "SyncManager.hh"
 
 using namespace std::chrono_literals;
 
@@ -383,7 +383,6 @@ namespace ignition
       public: ServerConfig serverConfig;
 
       friend class LevelManager;
-      friend class SyncManager;
     };
     }
   }
