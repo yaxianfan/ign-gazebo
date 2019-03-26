@@ -16,6 +16,8 @@
 */
 
 #include "SimulationRunner.hh"
+#include "network/SyncManagerPrimary.hh"
+#include "network/SyncManagerSecondary.hh"
 
 #include "ignition/common/Profiler.hh"
 
@@ -117,18 +119,22 @@ SimulationRunner::SimulationRunner(const sdf::World *_world,
 
     if (this->networkMgr->IsPrimary())
     {
+      // Create the sync manager
+      this->syncMgr = std::make_unique<SyncManagerPrimary>(
+          this->entityCompMgr, this->networkMgr.get());
+
       ignmsg << "Network Primary, expects ["
              << this->networkMgr->Config().numSecondariesExpected
              << "] seondaries." << std::endl;
     }
     else if (this->networkMgr->IsSecondary())
     {
+      this->syncMgr = std::make_unique<SyncManagerSecondary>(
+          this->entityCompMgr, this->networkMgr.get());
+
       ignmsg << "Network Secondary, with namespace ["
              << this->networkMgr->Namespace() << "]." << std::endl;
     }
-
-    // Create the sync manager
-    this->syncMgr = std::make_unique<SyncManager>(this);
   }
 
   // Load the active levels
@@ -342,15 +348,11 @@ bool SimulationRunner::Run(const uint64_t _iterations)
     // todo(mjcarroll) improve guard conditions around the busy loops.
     igndbg << "Initializing network configuration" << std::endl;
     this->networkMgr->Initialize();
+    this->syncMgr->Initialize();
 
-    if (!this->stopReceived)
+    while (!this->syncMgr->Initialized() && !this->stopReceived)
     {
-      this->syncMgr->DistributePerformers();
-    }
-    else
-    {
-      this->running = false;
-      return false;
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
   }
 
