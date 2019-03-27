@@ -16,6 +16,8 @@
 */
 
 #include "SimulationRunner.hh"
+#include "network/SyncManagerPrimary.hh"
+#include "network/SyncManagerSecondary.hh"
 
 #include "ignition/common/Profiler.hh"
 
@@ -113,7 +115,9 @@ SimulationRunner::SimulationRunner(const sdf::World *_world,
   // If the configuration is invalid, then networkMgr will be `nullptr`.
   if (_config.UseDistributedSimulation())
   {
-    this->networkMgr = NetworkManager::Create(&this->eventMgr);
+    this->networkMgr = NetworkManager::Create(
+        std::bind(&SimulationRunner::Step, this, std::placeholders::_1),
+        &this->eventMgr);
 
     if (this->networkMgr->IsPrimary())
     {
@@ -126,9 +130,6 @@ SimulationRunner::SimulationRunner(const sdf::World *_world,
       ignmsg << "Network Secondary, with namespace ["
              << this->networkMgr->Namespace() << "]." << std::endl;
     }
-
-    // Create the sync manager
-    this->syncMgr = std::make_unique<SyncManager>(this);
   }
 
   // Load the active levels
@@ -149,6 +150,15 @@ SimulationRunner::SimulationRunner(const sdf::World *_world,
   this->node = std::make_unique<transport::Node>(opts);
 
   this->node->Advertise("control", &SimulationRunner::OnWorldControl, this);
+
+  // Create the world statistics publisher.
+  transport::AdvertiseMessageOptions advertOpts;
+  advertOpts.SetMsgsPerSec(5);
+  this->statsPub = this->node->Advertise<ignition::msgs::WorldStatistics>(
+      "stats", advertOpts);
+
+  // Create the clock publisher.
+  this->clockPub = this->node->Advertise<ignition::msgs::Clock>("clock");
 
   // Publish empty GUI messages for worlds that have no GUI in the beginning.
   // In the future, support modifying GUI from the server at runtime.
@@ -343,14 +353,27 @@ bool SimulationRunner::Run(const uint64_t _iterations)
     igndbg << "Initializing network configuration" << std::endl;
     this->networkMgr->Initialize();
 
-    if (!this->stopReceived)
+    // Create sync managers after successful network initialization
+    if (this->networkMgr->IsPrimary())
     {
-      this->syncMgr->DistributePerformers();
+      this->syncMgr = std::make_unique<SyncManagerPrimary>(
+          this->entityCompMgr, this->networkMgr.get());
+    }
+    else if (this->networkMgr->IsSecondary())
+    {
+      this->syncMgr = std::make_unique<SyncManagerSecondary>(
+          this->entityCompMgr, this->networkMgr.get());
     }
     else
     {
-      this->running = false;
+      ignerr << "Network manager isn't primary or secondary" << std::endl;
       return false;
+    }
+
+    // Wait for initial performer distribution
+    while (!this->syncMgr->Initialized() && !this->stopReceived)
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
   }
 
@@ -365,19 +388,6 @@ bool SimulationRunner::Run(const uint64_t _iterations)
   std::chrono::steady_clock::duration actualSleep;
 
   this->running = true;
-
-  // Create the world statistics publisher.
-  if (!this->statsPub.Valid())
-  {
-    transport::AdvertiseMessageOptions advertOpts;
-    advertOpts.SetMsgsPerSec(5);
-    this->statsPub = this->node->Advertise<ignition::msgs::WorldStatistics>(
-        "stats", advertOpts);
-  }
-
-  // Create the clock publisher.
-  if (!this->clockPub.Valid())
-    this->clockPub = this->node->Advertise<ignition::msgs::Clock>("clock");
 
   // Execute all the systems until we are told to stop, or the number of
   // iterations is reached.
@@ -419,63 +429,68 @@ bool SimulationRunner::Run(const uint64_t _iterations)
     // and other values.
     this->UpdateCurrentInfo();
 
+    // If network, wait for network step, otherwise do our own step
     if (this->networkMgr)
     {
-      IGN_PROFILE("NetworkSync - SendStep");
-      // \todo(anyone) Replace busy loop with a condition.
-      while (this->running && !this->networkMgr->Step(this->currentInfo))
+      if (!this->networkMgr->Step(this->currentInfo, this->entityCompMgr))
       {
+        ignerr << "Failed to step network manager" << std::endl;
       }
     }
-
-    // Publish info
-    this->PublishStats();
-
-    // Record when the update step starts.
-    this->prevUpdateRealTime = std::chrono::steady_clock::now();
-
-    this->levelMgr->UpdateLevelsState();
-
-    // Update all the systems.
-    this->UpdateSystems();
-
-    if (!this->Paused() && this->pendingSimIterations > 0)
+    else
     {
-      // Decrement the pending sim iterations, if there are any.
-      --this->pendingSimIterations;
-      // If this is was the last sim iterations, then re-pause simulation.
-      if (this->pendingSimIterations <= 0)
-      {
-        this->SetPaused(true);
-      }
-    }
-
-    // Process world control messages.
-    this->ProcessMessages();
-
-    // Clear all new entities
-    this->entityCompMgr.ClearNewlyCreatedEntities();
-
-    // Process entity removals.
-    this->entityCompMgr.ProcessRemoveEntityRequests();
-
-
-    if (this->networkMgr)
-    {
-      IGN_PROFILE("NetworkSync - SecondaryAck");
-
-      this->syncMgr->Sync();
-
-      // \todo(anyone) Replace busy loop with a condition.
-      while (this->running && !this->networkMgr->StepAck(
-            this->currentInfo.iterations))
-      {
-      }
+      this->Step(this->currentInfo);
     }
   }
 
   this->running = false;
   return true;
+}
+
+/////////////////////////////////////////////////
+void SimulationRunner::Step(UpdateInfo _info)
+{
+  this->currentInfo = _info;
+
+  // Publish info
+  this->PublishStats();
+
+  // Record when the update step starts.
+  this->prevUpdateRealTime = std::chrono::steady_clock::now();
+
+  this->levelMgr->UpdateLevelsState();
+
+  // Update all the systems.
+  this->UpdateSystems();
+
+  if (!this->Paused() && this->pendingSimIterations > 0)
+  {
+    // Decrement the pending sim iterations, if there are any.
+    --this->pendingSimIterations;
+    // If this is was the last sim iterations, then re-pause simulation.
+    if (this->pendingSimIterations <= 0)
+    {
+      this->SetPaused(true);
+    }
+  }
+
+  // Process world control messages.
+  this->ProcessMessages();
+
+  // Clear all new entities
+  this->entityCompMgr.ClearNewlyCreatedEntities();
+
+  // Process entity removals.
+  this->entityCompMgr.ProcessRemoveEntityRequests();
+
+
+  if (this->networkMgr && this->syncMgr)
+  {
+    IGN_PROFILE("NetworkSync - SecondaryAck");
+
+    // TODO: move state sync to net manager
+    this->syncMgr->Sync();
+  }
 }
 
 //////////////////////////////////////////////////

@@ -56,6 +56,7 @@ namespace ignition
       ///   configuration will be populated from environment variables.
       /// \param[in] _options Advanced options for underlying ign-transport
       public: static std::unique_ptr<NetworkManager> Create(
+                  std::function<void(UpdateInfo &_info)> _stepFunction,
                   EventManager *_eventMgr = nullptr,
                   const NetworkConfig &_config = NetworkConfig::FromEnv(),
                   const NodeOptions &_options = NodeOptions());
@@ -65,9 +66,11 @@ namespace ignition
       /// NetworkManager
       /// \param[in] _config configuration object to use.
       /// \param[in] _options Advanced options for underlying ign-transport
-      protected: explicit NetworkManager(EventManager *_eventMgr,
-                                         const NetworkConfig &_config,
-                                         const NodeOptions &_options);
+      protected: explicit NetworkManager(
+                  std::function<void(UpdateInfo &_info)> _stepFunction,
+                  EventManager *_eventMgr,
+                  const NetworkConfig &_config,
+                  const NodeOptions &_options);
 
       /// \brief Destructor.
       public: virtual ~NetworkManager() = 0;
@@ -94,15 +97,8 @@ namespace ignition
       /// the simuation iteration.
       /// \param[inout] _info current simulation update information
       /// \return True if simulation step was successfully synced.
-      public: virtual bool Step(UpdateInfo &_info) = 0;
-
-      /// \brief Acknowledge completion of a step
-      /// This method is called at the end of a simulation iteration to provide
-      /// a syncronization point for all distributed simulation runner
-      /// instances.
-      /// \param[in] _iteration simulation iteration to ack.
-      /// \return True if iteration was successfully acknowledged
-      public: virtual bool StepAck(uint64_t _iteration) = 0;
+      public: virtual bool Step(UpdateInfo &_info,
+          EntityComponentManager &_ecm) = 0;
 
       /// \brief Get a unique namespace for this runner
       public: virtual std::string Namespace() const = 0;

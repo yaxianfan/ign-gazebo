@@ -44,6 +44,7 @@ namespace ignition
     {
       // Documentation inherited
       public: explicit NetworkManagerSecondary(
+                  std::function<void(UpdateInfo &_info)> _stepFunction,
                   EventManager *_eventMgr,
                   const NetworkConfig &_config,
                   const NodeOptions &_options);
@@ -55,10 +56,7 @@ namespace ignition
       public: void Initialize() override;
 
       // Documentation inherited
-      public: bool Step(UpdateInfo &_info) override;
-
-      // Documentation inherited
-      public: bool StepAck(uint64_t _iteration) override;
+      public: bool Step(UpdateInfo &_info, EntityComponentManager &_ecm) override;
 
       // Documentation inherited
       public: std::string Namespace() const override;
@@ -67,11 +65,14 @@ namespace ignition
       public: bool OnControl(const private_msgs::PeerControl &_req,
                              private_msgs::PeerControl &_resp);
 
+      /// \brief Service which the primary calls to step simulation.
+      /// \param[in] _req
+      /// \param[out] _res
+      private: bool StepService(const private_msgs::SimulationStep &_req,
+          msgs::SerializedState &_res);
+
       /// \brief Callback for when SimulationStep message is received.
       public: void OnStep(const private_msgs::SimulationStep &_msg);
-
-      /// \brief Hold the data from the most current simulation step.
-      private: std::unique_ptr<private_msgs::SimulationStep> currentStep;
 
       /// \brief Mutex to protect currentStep data.
       private: std::mutex stepMutex;
@@ -94,8 +95,7 @@ namespace ignition
       /// \brief Transport node used for communication with simulation graph.
       private: ignition::transport::Node node;
 
-      /// \brief Publisher for communication simulation step acknowledgement.
-      private: ignition::transport::Node::Publisher stepAckPub;
+      private: bool stepComplete{true};
     };
     }
   }  // namespace gazebo

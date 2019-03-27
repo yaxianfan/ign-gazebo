@@ -33,49 +33,61 @@ using namespace gazebo;
 
 //////////////////////////////////////////////////
 NetworkManagerSecondary::NetworkManagerSecondary(
-    EventManager *_eventMgr, const NetworkConfig &_config,
-    const NodeOptions &_options):
-  NetworkManager(_eventMgr, _config, _options),
+    std::function<void(UpdateInfo &_info)> _stepFunction,
+    EventManager *_eventMgr,
+    const NetworkConfig &_config, const NodeOptions &_options):
+  NetworkManager(_stepFunction, _eventMgr, _config, _options),
   node(_options)
 {
-  std::string topic { this->Namespace() + "/control" };
-
-  if (!this->node.Advertise(topic, &NetworkManagerSecondary::OnControl, this))
+  std::string controlService{this->Namespace() + "/control"};
+  if (!this->node.Advertise(controlService, &NetworkManagerSecondary::OnControl,
+      this))
   {
-    ignerr << "Error advertising PeerControl service" << std::endl;
+    ignerr << "Error advertising PeerControl service [" << controlService
+           << "]" << std::endl;
   }
   else
   {
-    igndbg << "Advertised PeerControl service on [" << topic << "]"
+    igndbg << "Advertised PeerControl service on [" << controlService << "]"
       << std::endl;
   }
 
-  this->node.Subscribe("step", &NetworkManagerSecondary::OnStep, this);
-
-  std::string ackTopic { this->Namespace() + "/stepAck" };
-  this->stepAckPub =
-      this->node.Advertise<private_msgs::SimulationStep>(ackTopic);
+  std::string stepService{this->Namespace() + "/step"};
+  if (!this->node.Advertise(stepService, &NetworkManagerSecondary::StepService,
+      this))
+  {
+    ignerr << "Error advertising Step service [" << stepService
+           << "]" << std::endl;
+  }
+  else
+  {
+    igndbg << "Advertised Step service on [" << stepService << "]"
+      << std::endl;
+  }
 
   auto eventMgr = this->dataPtr->eventMgr;
   if (eventMgr)
   {
     // Set a flag when the executable is stopping to cleanly exit.
     this->stoppingConn = eventMgr->Connect<events::Stop>(
-        [this](){
+        [this]()
+    {
           this->stopReceived = true;
     });
 
     this->dataPtr->peerRemovedConn = eventMgr->Connect<PeerRemoved>(
-        [this](PeerInfo _info){
+        [this](PeerInfo _info)
+    {
           if (_info.role == NetworkRole::SimulationPrimary)
           {
-            ignerr << "Primary removed, stopping simulation" << std::endl;
+            ignmsg << "Primary removed, stopping simulation" << std::endl;
             this->dataPtr->eventMgr->Emit<events::Stop>();
           }
     });
 
     this->dataPtr->peerStaleConn = eventMgr->Connect<PeerStale>(
-        [this](PeerInfo _info){
+        [this](PeerInfo _info)
+    {
           if (_info.role == NetworkRole::SimulationPrimary)
           {
             ignerr << "Primary went stale, stopping simulation" << std::endl;
@@ -103,49 +115,6 @@ void NetworkManagerSecondary::Initialize()
 }
 
 //////////////////////////////////////////////////
-bool NetworkManagerSecondary::Step(UpdateInfo &_info)
-{
-  if (!this->enableSim || this->stopReceived)
-  {
-    return false;
-  }
-
-  std::unique_lock<std::mutex> lock(this->stepMutex);
-  auto status = this->stepCv.wait_for(lock,
-      std::chrono::nanoseconds(100),
-      [this](){return this->currentStep != nullptr;});
-
-  if (status) {
-    // Throttle the number of step messages going to the debug output.
-    if (!this->currentStep->paused() &&
-        this->currentStep->iteration() % 1000 == 0)
-    {
-      igndbg << "Network iterations: " << this->currentStep->iteration()
-             << std::endl;
-    }
-    _info.iterations = this->currentStep->iteration();
-    _info.paused = this->currentStep->paused();
-    _info.dt = std::chrono::steady_clock::duration(
-        std::chrono::nanoseconds(this->currentStep->stepsize()));
-    _info.simTime = std::chrono::steady_clock::duration(
-        std::chrono::seconds(this->currentStep->simtime().sec()) +
-        std::chrono::nanoseconds(this->currentStep->simtime().nsec()));
-    this->currentStep.reset();
-  }
-
-  return status;
-}
-
-//////////////////////////////////////////////////
-bool NetworkManagerSecondary::StepAck(uint64_t _iteration)
-{
-  auto step = private_msgs::SimulationStep();
-  step.set_iteration(_iteration);
-  this->stepAckPub.Publish(step);
-  return true;
-}
-
-//////////////////////////////////////////////////
 std::string NetworkManagerSecondary::Namespace() const
 {
   return this->dataPtr->peerInfo.id.substr(0, 8);
@@ -155,17 +124,73 @@ std::string NetworkManagerSecondary::Namespace() const
 bool NetworkManagerSecondary::OnControl(const private_msgs::PeerControl &_req,
                                         private_msgs::PeerControl& _resp)
 {
-  igndbg << "NetworkManagerSecondary::OnControl" << std::endl;
   this->enableSim = _req.enable_sim();
   _resp.set_enable_sim(this->enableSim);
   return true;
 }
 
-//////////////////////////////////////////////////
-void NetworkManagerSecondary::OnStep(const private_msgs::SimulationStep &_msg)
+/////////////////////////////////////////////////
+bool NetworkManagerSecondary::StepService(
+    const private_msgs::SimulationStep &_req,
+    msgs::SerializedState &_res)
 {
+  // Wait for previous step to complete first
+  {
+    std::unique_lock<std::mutex> lock(this->stepMutex);
+    if (this->stepComplete)
+    {
+      ignerr << "Step complete before starting" << std::endl;
+    }
+  }
+
+  // Throttle the number of step messages going to the debug output.
+  if (!_req.paused() && _req.iteration() % 1000 == 0)
+  {
+    igndbg << "Network iterations: " << _req.iteration()
+           << std::endl;
+  }
+
+  // Update UpdateInfo
+  UpdateInfo info;
+  info.iterations = _req.iteration();
+  info.paused = _req.paused();
+  info.dt = std::chrono::steady_clock::duration(
+      std::chrono::nanoseconds(_req.stepsize()));
+  info.simTime = std::chrono::steady_clock::duration(
+      std::chrono::seconds(_req.simtime().sec()) +
+      std::chrono::nanoseconds(_req.simtime().nsec()));
+
+  // TODO: Set state
+
+  // Step runner
+  this->dataPtr->stepFunction(info);
+
+  // Finish step
   std::unique_lock<std::mutex> lock(this->stepMutex);
-  this->currentStep = std::make_unique<private_msgs::SimulationStep>(_msg);
+  this->stepComplete = true;
   lock.unlock();
   this->stepCv.notify_all();
+
+  return true;
 }
+
+//////////////////////////////////////////////////
+bool NetworkManagerSecondary::Step(UpdateInfo &, EntityComponentManager &)
+{
+  if (!this->enableSim || this->stopReceived)
+  {
+    return false;
+  }
+
+  std::unique_lock<std::mutex> lock(this->stepMutex);
+  this->stepComplete = false;
+  auto status = this->stepCv.wait_for(lock, std::chrono::seconds(3),
+      [this]()
+  {
+    return this->stepComplete;
+  });
+
+  return status;
+}
+
+
