@@ -49,7 +49,6 @@
 
 #include "network/NetworkManager.hh"
 #include "LevelManager.hh"
-#include "SyncManager.hh"
 
 using namespace std::chrono_literals;
 
@@ -122,7 +121,12 @@ namespace ignition
       /// \return True if the operation completed successfully.
       public: bool Run(const uint64_t _iterations);
 
+      /// \brief Step
+      public: void Step(UpdateInfo _info);
+
       /// \brief Add system after the simulation runner has been instantiated
+      /// \note This actually adds system to a queue. The system is added to the
+      /// runner at the begining of the a simulation cycle (call to Run)
       /// \param[in] _system System to be added
       public: void AddSystem(const SystemPluginPtr &_system);
 
@@ -269,6 +273,14 @@ namespace ignition
       /// \brief Process world control service messages.
       private: void ProcessWorldControl();
 
+      /// \brief Actually add system to the runner
+      /// \param[in] _system System to be added
+      public: void AddSystemToRunner(const SystemPluginPtr &_system);
+
+      /// \brief Calls AddSystemToRunner to each system that is pending to be
+      /// added.
+      public: void ProcessSystemQueue();
+
       /// \brief This is used to indicate that a stop event has been received.
       private: std::atomic<bool> stopReceived{false};
 
@@ -278,6 +290,12 @@ namespace ignition
 
       /// \brief All the systems.
       private: std::vector<SystemInternal> systems;
+
+      /// \brief Pending systems to be added to systems.
+      private: std::vector<SystemPluginPtr> pendingSystems;
+
+      /// \brief Mutex to protect pendingSystems
+      private: mutable std::mutex pendingSystemsMutex;
 
       /// \brief Systems implementing Configure
       private: std::vector<ISystemConfigure *> systemsConfigure;
@@ -303,9 +321,6 @@ namespace ignition
       /// \brief Manager of distributing/receiving network work.
       private: std::unique_ptr<NetworkManager> networkMgr{nullptr};
 
-      /// \brief Manager of network sync.
-      private: std::unique_ptr<SyncManager> syncMgr{nullptr};
-
       /// \brief A pool of worker threads.
       private: common::WorkerPool workerPool{2};
 
@@ -328,6 +343,9 @@ namespace ignition
 
       /// \brief System loader, for loading system plugins.
       private: SystemLoaderPtr systemLoader;
+
+      /// \brief Mutex to protect systemLoader
+      private: std::mutex systemLoaderMutex;
 
       /// \brief Node for communication.
       private: std::unique_ptr<transport::Node> node{nullptr};
@@ -383,7 +401,6 @@ namespace ignition
       public: ServerConfig serverConfig;
 
       friend class LevelManager;
-      friend class SyncManager;
     };
     }
   }

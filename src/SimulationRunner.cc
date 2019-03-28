@@ -113,7 +113,9 @@ SimulationRunner::SimulationRunner(const sdf::World *_world,
   // If the configuration is invalid, then networkMgr will be `nullptr`.
   if (_config.UseDistributedSimulation())
   {
-    this->networkMgr = NetworkManager::Create(&this->eventMgr);
+    this->networkMgr = NetworkManager::Create(
+        std::bind(&SimulationRunner::Step, this, std::placeholders::_1),
+        this->entityCompMgr, &this->eventMgr);
 
     if (this->networkMgr->IsPrimary())
     {
@@ -126,9 +128,6 @@ SimulationRunner::SimulationRunner(const sdf::World *_world,
       ignmsg << "Network Secondary, with namespace ["
              << this->networkMgr->Namespace() << "]." << std::endl;
     }
-
-    // Create the sync manager
-    this->syncMgr = std::make_unique<SyncManager>(this);
   }
 
   // Load the active levels
@@ -279,6 +278,13 @@ void SimulationRunner::PublishStats()
 /////////////////////////////////////////////////
 void SimulationRunner::AddSystem(const SystemPluginPtr &_system)
 {
+  std::lock_guard<std::mutex> lock(this->pendingSystemsMutex);
+  this->pendingSystems.push_back(_system);
+}
+
+/////////////////////////////////////////////////
+void SimulationRunner::AddSystemToRunner(const SystemPluginPtr &_system)
+{
   this->systems.push_back(SystemInternal(_system));
 
   const auto &system = this->systems.back();
@@ -291,6 +297,17 @@ void SimulationRunner::AddSystem(const SystemPluginPtr &_system)
 
   if (system.postupdate)
     this->systemsPostupdate.push_back(system.postupdate);
+}
+
+/////////////////////////////////////////////////
+void SimulationRunner::ProcessSystemQueue()
+{
+  std::lock_guard<std::mutex> lock(this->pendingSystemsMutex);
+  for (const auto &system : this->pendingSystems)
+  {
+    this->AddSystemToRunner(system);
+  }
+  this->pendingSystems.clear();
 }
 
 /////////////////////////////////////////////////
@@ -351,16 +368,6 @@ bool SimulationRunner::Run(const uint64_t _iterations)
     // todo(mjcarroll) improve guard conditions around the busy loops.
     igndbg << "Initializing network configuration" << std::endl;
     this->networkMgr->Initialize();
-
-    if (!this->stopReceived)
-    {
-      this->syncMgr->DistributePerformers();
-    }
-    else
-    {
-      this->running = false;
-      return false;
-    }
   }
 
   // Keep track of wall clock time. Only start the realTimeWatch if this
@@ -415,63 +422,62 @@ bool SimulationRunner::Run(const uint64_t _iterations)
     // and other values.
     this->UpdateCurrentInfo();
 
+    // If network, wait for network step, otherwise do our own step
     if (this->networkMgr)
     {
-      IGN_PROFILE("NetworkSync - SendStep");
-      // \todo(anyone) Replace busy loop with a condition.
-      while (this->running && !this->networkMgr->Step(this->currentInfo))
+      if (!this->networkMgr->Step(this->currentInfo))
       {
+        // Do smth?
       }
     }
-
-    // Publish info
-    this->PublishStats();
-
-    // Record when the update step starts.
-    this->prevUpdateRealTime = std::chrono::steady_clock::now();
-
-    this->levelMgr->UpdateLevelsState();
-
-    // Update all the systems.
-    this->UpdateSystems();
-
-    if (!this->Paused() && this->pendingSimIterations > 0)
+    else
     {
-      // Decrement the pending sim iterations, if there are any.
-      --this->pendingSimIterations;
-      // If this is was the last sim iterations, then re-pause simulation.
-      if (this->pendingSimIterations <= 0)
-      {
-        this->SetPaused(true);
-      }
-    }
-
-    // Process world control messages.
-    this->ProcessMessages();
-
-    // Clear all new entities
-    this->entityCompMgr.ClearNewlyCreatedEntities();
-
-    // Process entity removals.
-    this->entityCompMgr.ProcessRemoveEntityRequests();
-
-
-    if (this->networkMgr)
-    {
-      IGN_PROFILE("NetworkSync - SecondaryAck");
-
-      this->syncMgr->Sync();
-
-      // \todo(anyone) Replace busy loop with a condition.
-      while (this->running && !this->networkMgr->StepAck(
-            this->currentInfo.iterations))
-      {
-      }
+      this->Step(this->currentInfo);
     }
   }
 
   this->running = false;
   return true;
+}
+
+/////////////////////////////////////////////////
+void SimulationRunner::Step(UpdateInfo _info)
+{
+  this->currentInfo = _info;
+
+  // Publish info
+  this->PublishStats();
+
+  // Record when the update step starts.
+  this->prevUpdateRealTime = std::chrono::steady_clock::now();
+
+  this->levelMgr->UpdateLevelsState();
+
+    // Handle pending systems
+    this->ProcessSystemQueue();
+
+  // Update all the systems.
+  this->UpdateSystems();
+
+  if (!this->Paused() && this->pendingSimIterations > 0)
+  {
+    // Decrement the pending sim iterations, if there are any.
+    --this->pendingSimIterations;
+    // If this is was the last sim iterations, then re-pause simulation.
+    if (this->pendingSimIterations <= 0)
+    {
+      this->SetPaused(true);
+    }
+  }
+
+  // Process world control messages.
+  this->ProcessMessages();
+
+  // Clear all new entities
+  this->entityCompMgr.ClearNewlyCreatedEntities();
+
+  // Process entity removals.
+  this->entityCompMgr.ProcessRemoveEntityRequests();
 }
 
 //////////////////////////////////////////////////
@@ -489,8 +495,11 @@ void SimulationRunner::LoadPlugins(const Entity _entity,
     if (pluginElem->Get<std::string>("filename") != "__default__" &&
         pluginElem->Get<std::string>("name") != "__default__")
     {
-      std::optional<SystemPluginPtr> system =
-        this->systemLoader->LoadPlugin(pluginElem);
+      std::optional<SystemPluginPtr> system;
+      {
+        std::lock_guard<std::mutex> lock(this->systemLoaderMutex);
+        system = this->systemLoader->LoadPlugin(pluginElem);
+      }
       if (system)
       {
         auto systemConfig = system.value()->QueryInterface<ISystemConfigure>();
@@ -501,6 +510,8 @@ void SimulationRunner::LoadPlugins(const Entity _entity,
               this->eventMgr);
         }
         this->AddSystem(system.value());
+        igndbg << "Loaded system [" << pluginElem->Get<std::string>("name")
+               << "] for entity [" << _entity << "]" << std::endl;
       }
     }
 
@@ -540,8 +551,13 @@ void SimulationRunner::LoadPlugins(const Entity _entity,
     if (entity != _entity)
       continue;
 
-    std::optional<SystemPluginPtr> system =
-      this->systemLoader->LoadPlugin(plugin.Filename(), plugin.Name(), nullptr);
+    std::optional<SystemPluginPtr> system;
+    {
+      std::lock_guard<std::mutex> lock(this->systemLoaderMutex);
+      system = this->systemLoader->LoadPlugin(plugin.Filename(), plugin.Name(),
+                                              nullptr);
+    }
+
     if (system)
     {
       auto systemConfig = system.value()->QueryInterface<ISystemConfigure>();
@@ -593,7 +609,8 @@ size_t SimulationRunner::EntityCount() const
 /////////////////////////////////////////////////
 size_t SimulationRunner::SystemCount() const
 {
-  return this->systems.size();
+  std::lock_guard<std::mutex> lock(this->pendingSystemsMutex);
+  return this->systems.size() + this->pendingSystems.size();
 }
 
 /////////////////////////////////////////////////
