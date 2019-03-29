@@ -40,6 +40,8 @@ DEFINE_string(network_role, "", "Participant role used in a distributed "
     " simulation environment. Role is one of [primary, secondary].");
 DEFINE_int32(network_secondaries, 0, "Number of secondary participants "
     " expected to join a distributed simulation environment. (Primary only).");
+DEFINE_bool(record, false, "Use logging system to record states");
+DEFINE_string(playback, "", "Use logging system to play back states");
 
 //////////////////////////////////////////////////
 void help()
@@ -81,6 +83,12 @@ void help()
   << "  --network-secondaries  Number of secondary participants "
   << " expected to join a distributed simulation environment. (Primary only)"
   << std::endl
+  << std::endl
+  << "  --record               Use logging system to record states."
+  << " The default is false."
+  << std::endl
+  << "  --playback arg         Use logging system to play back states."
+  << " Arg is path to recorded states."
   << std::endl
   << "Environment variables:" << std::endl
   << "  IGN_GAZEBO_RESOURCE_PATH    Colon separated paths used to locate "
@@ -187,9 +195,6 @@ int main(int _argc, char **_argv)
     serverConfig.SetUseLevels(true);
   }
 
-  /// \todo(nkoenig) Deprecated the FLAGS_distributed in ign-gazebo2, and
-  /// remove in ign-gazebo3. The FLAGS_network_role is used to indicate
-  /// if distributed simulation is enabled.
   if (FLAGS_distributed)
   {
     ignmsg << "Using the distributed simulation system\n";
@@ -204,6 +209,18 @@ int main(int _argc, char **_argv)
       ignmsg << "Using the distributed simulation system\n";
     serverConfig.SetNetworkRole(FLAGS_network_role);
     serverConfig.SetNetworkSecondaries(FLAGS_network_secondaries);
+  }
+
+  if (FLAGS_record)
+  {
+    ignmsg << "Recording states\n";
+    serverConfig.SetUseLogRecord(true);
+  }
+
+  if (!FLAGS_playback.empty())
+  {
+    ignmsg << "Playing back states" << FLAGS_playback << std::endl;
+    serverConfig.SetLogPlaybackPath(FLAGS_playback);
   }
 
   // Create the Gazebo server
