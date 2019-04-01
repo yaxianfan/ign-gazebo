@@ -43,6 +43,8 @@ DEFINE_bool(r, false, "Run simulation on start. "
     "The default is false, which starts simulation paused.");
 DEFINE_bool(levels, false, "Use levels");
 DEFINE_bool(distributed, false, "Use distributed simulation.");
+DEFINE_bool(record, false, "Use logging system to record states");
+DEFINE_string(playback, "", "Use logging system to play back states");
 
 //////////////////////////////////////////////////
 void help()
@@ -88,6 +90,12 @@ void help()
   << std::endl
   << "  --network-secondaries  Number of secondary participants "
   << " expected to join a distributed simulation environment. (Primary only)"
+  << std::endl
+  << "  --record               Use logging system to record states."
+  << " The default is false."
+  << std::endl
+  << "  --playback arg         Use logging system to play back states."
+  << " Arg is path to recorded states."
   << std::endl
   << std::endl
   << "Environment variables:" << std::endl

@@ -18,6 +18,7 @@
 #define IGNITION_GAZEBO_SYSTEMS_LOGPLAYBACK_HH_
 
 #include <memory>
+#include <string>
 
 #include <ignition/gazebo/config.hh>
 #include <ignition/gazebo/Export.hh>
@@ -57,6 +58,11 @@ namespace systems
     /// Documentation inherited
     public: void Update(const UpdateInfo &_info,
                         EntityComponentManager &_ecm) final;
+
+    /// \brief Start log playback.
+    public: bool Start(const std::string &_logPath,
+        const Entity &_worldEntity, EntityComponentManager &_ecm,
+        EventManager &_eventMgr);
 
     /// \brief Private data pointer.
     private: std::unique_ptr<LogPlaybackPrivate> dataPtr;

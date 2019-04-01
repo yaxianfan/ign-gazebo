@@ -18,6 +18,7 @@
 #define IGNITION_GAZEBO_SYSTEMS_LOGRECORD_HH_
 
 #include <memory>
+#include <string>
 
 #include <ignition/gazebo/config.hh>
 #include <ignition/gazebo/Export.hh>
@@ -51,6 +52,12 @@ namespace systems
                            const std::shared_ptr<const sdf::Element> &_sdf,
                            EntityComponentManager &_ecm,
                            EventManager &_eventMgr) final;
+
+    /// \brief Start recording
+    public: bool Start(const std::string &_logPath = std::string(""));
+
+    /// \brief Stop recording
+    public: void Stop();
 
     /// \brief Private data pointer.
     private: std::unique_ptr<LogRecordPrivate> dataPtr;
