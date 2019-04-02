@@ -14,18 +14,27 @@
  * limitations under the License.
  *
 */
-#include "NetworkManagerPrimary.hh"
-
-#include <algorithm>
-#include <string>
-
-#include "ignition/common/Console.hh"
-#include "ignition/common/Util.hh"
-#include "ignition/gazebo/Events.hh"
 
 #include "msgs/peer_control.pb.h"
 #include "msgs/simulation_step.pb.h"
 
+#include <algorithm>
+#include <string>
+
+#include <ignition/common/Console.hh>
+#include <ignition/common/Util.hh>
+#include <ignition/common/Profiler.hh>
+
+#include "ignition/gazebo/components/Name.hh"
+#include "ignition/gazebo/components/ParentEntity.hh"
+#include "ignition/gazebo/components/Performer.hh"
+#include "ignition/gazebo/components/PerformerAffinity.hh"
+#include "ignition/gazebo/Conversions.hh"
+#include "ignition/gazebo/Entity.hh"
+#include "ignition/gazebo/EntityComponentManager.hh"
+#include "ignition/gazebo/Events.hh"
+
+#include "NetworkManagerPrimary.hh"
 #include "NetworkManagerPrivate.hh"
 #include "PeerTracker.hh"
 
@@ -34,12 +43,15 @@ using namespace gazebo;
 
 //////////////////////////////////////////////////
 NetworkManagerPrimary::NetworkManagerPrimary(
-    EventManager *_eventMgr, const NetworkConfig &_config,
-    const NodeOptions &_options):
-  NetworkManager(_eventMgr, _config, _options),
+    std::function<void(UpdateInfo &_info)> _stepFunction,
+    EntityComponentManager &_ecm, EventManager *_eventMgr,
+    const NetworkConfig &_config, const NodeOptions &_options):
+  NetworkManager(_stepFunction, _ecm, _eventMgr, _config, _options),
   node(_options)
 {
   this->simStepPub = this->node.Advertise<private_msgs::SimulationStep>("step");
+
+  this->node.Subscribe("step_ack", &NetworkManagerPrimary::OnStepAck, this);
 
   auto eventMgr = this->dataPtr->eventMgr;
   if (eventMgr)
@@ -72,7 +84,7 @@ NetworkManagerPrimary::NetworkManagerPrimary(
 }
 
 //////////////////////////////////////////////////
-void NetworkManagerPrimary::Initialize()
+void NetworkManagerPrimary::Handshake()
 {
   auto peers = this->dataPtr->tracker->SecondaryPeers();
   for (const auto &peer : peers)
@@ -88,7 +100,7 @@ void NetworkManagerPrimary::Initialize()
     std::string topic {sc->prefix + "/control"};
     unsigned int timeout = 5000;
 
-    igndbg << "Attempting to register secondary [" << topic << "]" << std::endl;
+    igndbg << "Registering secondary [" << topic << "]" << std::endl;
     bool executed = this->node.Request(topic, req, timeout, resp, result);
 
     if (executed)
@@ -100,21 +112,15 @@ void NetworkManagerPrimary::Initialize()
       }
       else
       {
-        igndbg << "Peer service call failed [" << sc->prefix << "]"
+        ignerr << "Peer service call failed [" << sc->prefix << "]"
           << std::endl;
       }
     }
     else
     {
-      igndbg << "Peer service call timed out [" << sc->prefix << "]"
-        << std::endl;
+      ignerr << "Peer service call timed out [" << sc->prefix << "], waited "
+             << timeout << " ms" << std::endl;
     }
-
-    auto ackTopic = std::string {sc->prefix + "/stepAck"};
-    std::function<void(const private_msgs::SimulationStep&)> fcn =
-        std::bind(&NetworkManagerPrimary::OnStepAck, this, sc->prefix,
-            std::placeholders::_1);
-    this->node.Subscribe<private_msgs::SimulationStep>(ackTopic, fcn);
 
     this->secondaries[sc->prefix] = std::move(sc);
   }
@@ -132,58 +138,81 @@ bool NetworkManagerPrimary::Ready() const
 //////////////////////////////////////////////////
 bool NetworkManagerPrimary::Step(UpdateInfo &_info)
 {
+  IGN_PROFILE("NetworkManagerPrimary::Step");
+  // Check all secondaries have been registered
   bool ready = true;
   for (const auto &secondary : this->secondaries)
   {
     ready &= secondary.second->ready;
   }
 
-  if (ready)
+  if (!ready)
   {
-    // Throttle the number of step messages going to the debug output.
-    if (!_info.paused && _info.iterations % 1000 == 0)
+    ignerr << "Trying to step network primary before all peers are ready."
+           << std::endl;
+    return false;
+  }
+
+  private_msgs::SimulationStep step;
+
+  // Step time
+  step.set_iteration(_info.iterations);
+  step.set_paused(_info.paused);
+  step.mutable_simtime()->CopyFrom(convert<msgs::Time>(_info.simTime));
+
+  auto stepSizeSecNsec = math::durationToSecNsec(_info.dt);
+  step.set_stepsize(stepSizeSecNsec.second);
+
+  // Affinities that changed this step
+  this->PopulateAffinities(step);
+
+  // Check all secondaries are ready to receive steps - only do this once at
+  // startup
+  if (!this->SecondariesCanStep())
+  {
+    return false;
+  }
+
+  // Send step to all secondaries in parallel
+  this->secondaryStates.clear();
+  auto useService{false};
+
+  if (useService)
+  {
+    for (const auto &secondary : this->secondaries)
     {
-      igndbg << "Network iterations: " << _info.iterations << std::endl;
+      this->node.Request(secondary.second->prefix + "/step", step,
+          &NetworkManagerPrimary::OnStepResponse, this);
     }
-
-    auto step = private_msgs::SimulationStep();
-    step.set_iteration(_info.iterations);
-    step.set_paused(_info.paused);
-
-    auto stepSizeSecNsec =
-      ignition::math::durationToSecNsec(_info.dt);
-    step.set_stepsize(stepSizeSecNsec.second);
-
-    auto simTimeSecNsec =
-      ignition::math::durationToSecNsec(_info.simTime);
-    step.mutable_simtime()->set_sec(simTimeSecNsec.first);
-    step.mutable_simtime()->set_nsec(simTimeSecNsec.second);
+  }
+  else
+  {
     this->simStepPub.Publish(step);
   }
-  return ready;
-}
 
-//////////////////////////////////////////////////
-bool NetworkManagerPrimary::StepAck(uint64_t _iteration)
-
-{
-  bool stepAck = true;
-  bool iters = true;
-  for (const auto &secondary : this->secondaries)
+  // Block until all secondaries are done
   {
-    stepAck &= secondary.second->recvStepAck;
-    iters &= (_iteration == secondary.second->recvIter);
-  }
-
-  if (stepAck && iters)
-  {
-    for (auto &secondary : this->secondaries)
+    IGN_PROFILE("Waiting for secondaries");
+    while (this->secondaryStates.size() < this->secondaries.size())
     {
-      secondary.second->recvStepAck = false;
+      std::this_thread::sleep_for(std::chrono::nanoseconds(1));
     }
   }
 
-  return (stepAck && iters);
+  // Update primary state with states received from secondaries
+  {
+    IGN_PROFILE("Updating primary state");
+    for (const auto &msg : this->secondaryStates)
+    {
+      this->dataPtr->ecm->SetState(msg);
+    }
+    this->secondaryStates.clear();
+  }
+
+  // Step all systems
+  this->dataPtr->stepFunction(_info);
+
+  return true;
 }
 
 //////////////////////////////////////////////////
@@ -193,16 +222,106 @@ std::string NetworkManagerPrimary::Namespace() const
 }
 
 //////////////////////////////////////////////////
-void NetworkManagerPrimary::OnStepAck(const std::string &_secondary,
-      const private_msgs::SimulationStep &_msg)
+std::map<std::string, SecondaryControl::Ptr>
+    &NetworkManagerPrimary::Secondaries()
 {
-  this->secondaries[_secondary]->recvStepAck = true;
-  this->secondaries[_secondary]->recvIter = _msg.iteration();
+  return this->secondaries;
 }
 
 //////////////////////////////////////////////////
-std::map<std::string, SecondaryControl::Ptr>&
-NetworkManagerPrimary::Secondaries()
+void NetworkManagerPrimary::OnStepAck(
+    const msgs::SerializedState &_msg)
 {
-  return this->secondaries;
+  this->secondaryStates.push_back(_msg);
+}
+
+//////////////////////////////////////////////////
+void NetworkManagerPrimary::OnStepResponse(
+    const msgs::SerializedState &_res, const bool _result)
+{
+  if (_result)
+    this->secondaryStates.push_back(_res);
+}
+
+//////////////////////////////////////////////////
+bool NetworkManagerPrimary::SecondariesCanStep() const
+{
+  static bool allAvailable{false};
+
+  // Only check until it's true
+  if (allAvailable)
+    return true;
+
+  for (const auto &secondary : this->secondaries)
+  {
+    std::string service{secondary.second->prefix + "/step"};
+
+    std::vector<transport::ServicePublisher> publishers;
+    for (size_t i = 0; i < 50; ++i)
+    {
+      this->node.ServiceInfo(service, publishers);
+      if (!publishers.empty())
+        break;
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    if (publishers.empty())
+    {
+      ignwarn << "Can't step, service [" << service << "] not available."
+              << std::endl;
+      return false;
+    }
+  }
+
+  allAvailable = true;
+  return true;
+}
+
+//////////////////////////////////////////////////
+void NetworkManagerPrimary::PopulateAffinities(
+    private_msgs::SimulationStep &_msg)
+{
+  auto secondaryIt = this->secondaries.begin();
+
+  // TODO(louise) Asign affinities according to level changes instead of
+  // round-robin
+  static bool tmpShortCut{false};
+  if (tmpShortCut)
+    return;
+  tmpShortCut = true;
+
+  // Go through performers and assign affinities
+  this->dataPtr->ecm->Each<components::Performer, components::ParentEntity>(
+    [&](const Entity &_entity,
+        const components::Performer *,
+        const components::ParentEntity *_parent) -> bool
+    {
+      auto pid = _parent->Data();
+      auto parentName = this->dataPtr->ecm->Component<components::Name>(pid);
+      if (!parentName)
+      {
+        ignerr << "Internal error: entity [" << _entity
+               << "]'s parent missing name." << std::endl;
+        return true;
+      }
+
+      auto affinityMsg = _msg.add_affinity();
+      affinityMsg->mutable_entity()->set_name(parentName->Data());
+      affinityMsg->mutable_entity()->set_id(_entity);
+      affinityMsg->set_secondary_prefix(secondaryIt->second->prefix);
+
+      // TODO(louise) Set affinity according to levels, not round-robin
+      this->dataPtr->ecm->CreateComponent(_entity,
+          components::PerformerAffinity(secondaryIt->second->prefix));
+
+      secondaryIt++;
+      if (secondaryIt == this->secondaries.end())
+      {
+        secondaryIt = this->secondaries.begin();
+      }
+
+      return true;
+    });
+
+  // TODO(louise): send performer states for new affinities
 }
