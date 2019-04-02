@@ -14,18 +14,24 @@
  * limitations under the License.
  *
 */
-#include "NetworkManagerSecondary.hh"
+
+#include "msgs/peer_control.pb.h"
 
 #include <algorithm>
 #include <string>
 
-#include "ignition/common/Console.hh"
-#include "ignition/common/Util.hh"
+#include <ignition/common/Console.hh>
+#include <ignition/common/Util.hh>
+#include <ignition/common/Profiler.hh>
+
+#include "ignition/gazebo/components/ParentEntity.hh"
+#include "ignition/gazebo/components/PerformerAffinity.hh"
+#include "ignition/gazebo/Entity.hh"
+#include "ignition/gazebo/EntityComponentManager.hh"
 #include "ignition/gazebo/Events.hh"
 
-#include "msgs/peer_control.pb.h"
-
 #include "NetworkManagerPrivate.hh"
+#include "NetworkManagerSecondary.hh"
 #include "PeerTracker.hh"
 
 using namespace ignition;
@@ -33,40 +39,53 @@ using namespace gazebo;
 
 //////////////////////////////////////////////////
 NetworkManagerSecondary::NetworkManagerSecondary(
-    EventManager *_eventMgr, const NetworkConfig &_config,
-    const NodeOptions &_options):
-  NetworkManager(_eventMgr, _config, _options),
+    std::function<void(UpdateInfo &_info)> _stepFunction,
+    EntityComponentManager &_ecm,
+    EventManager *_eventMgr,
+    const NetworkConfig &_config, const NodeOptions &_options):
+  NetworkManager(_stepFunction, _ecm, _eventMgr, _config, _options),
   node(_options)
 {
-  std::string topic { this->Namespace() + "/control" };
-
-  if (!this->node.Advertise(topic, &NetworkManagerSecondary::OnControl, this))
+  std::string controlService{this->Namespace() + "/control"};
+  if (!this->node.Advertise(controlService, &NetworkManagerSecondary::OnControl,
+      this))
   {
-    ignerr << "Error advertising PeerControl service" << std::endl;
+    ignerr << "Error advertising PeerControl service [" << controlService
+           << "]" << std::endl;
   }
   else
   {
-    igndbg << "Advertised PeerControl service on [" << topic << "]"
+    igndbg << "Advertised PeerControl service on [" << controlService << "]"
       << std::endl;
   }
 
-  this->node.Subscribe("step", &NetworkManagerSecondary::OnStep, this);
-
-  std::string ackTopic { this->Namespace() + "/stepAck" };
-  this->stepAckPub =
-      this->node.Advertise<private_msgs::SimulationStep>(ackTopic);
+  std::string stepService{this->Namespace() + "/step"};
+  if (!this->node.Advertise(stepService, &NetworkManagerSecondary::StepService,
+      this))
+  {
+    ignerr << "Error advertising Step service [" << stepService
+           << "]" << std::endl;
+  }
+  else
+  {
+    igndbg << "Advertised Step service on [" << stepService << "]"
+      << std::endl;
+  }
 
   auto eventMgr = this->dataPtr->eventMgr;
   if (eventMgr)
   {
     // Set a flag when the executable is stopping to cleanly exit.
     this->stoppingConn = eventMgr->Connect<events::Stop>(
-        [this](){
-          this->stopReceived = true;
+        [this]()
+    {
+      this->stopReceived = true;
+      this->stepComplete = true;
     });
 
     this->dataPtr->peerRemovedConn = eventMgr->Connect<PeerRemoved>(
-        [this](PeerInfo _info){
+        [this](PeerInfo _info)
+    {
           if (_info.role == NetworkRole::SimulationPrimary)
           {
             ignmsg << "Primary removed, stopping simulation" << std::endl;
@@ -75,7 +94,8 @@ NetworkManagerSecondary::NetworkManagerSecondary(
     });
 
     this->dataPtr->peerStaleConn = eventMgr->Connect<PeerStale>(
-        [this](PeerInfo _info){
+        [this](PeerInfo _info)
+    {
           if (_info.role == NetworkRole::SimulationPrimary)
           {
             ignerr << "Primary went stale, stopping simulation" << std::endl;
@@ -94,7 +114,7 @@ bool NetworkManagerSecondary::Ready() const
 }
 
 //////////////////////////////////////////////////
-void NetworkManagerSecondary::Initialize()
+void NetworkManagerSecondary::Handshake()
 {
   while (!this->enableSim && !this->stopReceived)
   {
@@ -103,50 +123,28 @@ void NetworkManagerSecondary::Initialize()
 }
 
 //////////////////////////////////////////////////
-bool NetworkManagerSecondary::Step(UpdateInfo &_info)
+bool NetworkManagerSecondary::Step(UpdateInfo &)
 {
+  IGN_PROFILE("NetworkManagerSecondary::Step");
   if (!this->enableSim || this->stopReceived)
   {
     return false;
   }
 
   std::unique_lock<std::mutex> lock(this->stepMutex);
-  auto status = this->stepCv.wait_for(lock,
-      std::chrono::nanoseconds(100),
-      [this]()
+  this->stepComplete = false;
+  auto timeout = std::chrono::system_clock::now() + std::chrono::seconds(5);
+  auto status = this->stepCv.wait_until(lock, timeout, [this]()
   {
-    return this->currentStep != nullptr;
+    return this->stepComplete == true;
   });
 
   if (!status)
-    return false;
-
-  // Throttle the number of step messages going to the debug output.
-  if (!this->currentStep->paused() &&
-      this->currentStep->iteration() % 1000 == 0)
   {
-    igndbg << "Network iterations: " << this->currentStep->iteration()
-           << std::endl;
+    ignerr << "Timed out waiting for step to complete." << std::endl;
   }
-  _info.iterations = this->currentStep->iteration();
-  _info.paused = this->currentStep->paused();
-  _info.dt = std::chrono::steady_clock::duration(
-      std::chrono::nanoseconds(this->currentStep->stepsize()));
-  _info.simTime = std::chrono::steady_clock::duration(
-      std::chrono::seconds(this->currentStep->simtime().sec()) +
-      std::chrono::nanoseconds(this->currentStep->simtime().nsec()));
-  this->currentStep.reset();
 
-  return true;
-}
-
-//////////////////////////////////////////////////
-bool NetworkManagerSecondary::StepAck(uint64_t _iteration)
-{
-  auto step = private_msgs::SimulationStep();
-  step.set_iteration(_iteration);
-  this->stepAckPub.Publish(step);
-  return true;
+  return status;
 }
 
 //////////////////////////////////////////////////
@@ -159,17 +157,83 @@ std::string NetworkManagerSecondary::Namespace() const
 bool NetworkManagerSecondary::OnControl(const private_msgs::PeerControl &_req,
                                         private_msgs::PeerControl& _resp)
 {
-  igndbg << "NetworkManagerSecondary::OnControl" << std::endl;
   this->enableSim = _req.enable_sim();
   _resp.set_enable_sim(this->enableSim);
   return true;
 }
 
-//////////////////////////////////////////////////
-void NetworkManagerSecondary::OnStep(const private_msgs::SimulationStep &_msg)
+/////////////////////////////////////////////////
+bool NetworkManagerSecondary::StepService(
+    const private_msgs::SimulationStep &_req,
+    msgs::SerializedState &_res)
 {
-  std::unique_lock<std::mutex> lock(this->stepMutex);
-  this->currentStep = std::make_unique<private_msgs::SimulationStep>(_msg);
-  lock.unlock();
-  this->stepCv.notify_all();
+  IGN_PROFILE("NetworkManagerSecondary::StepService");
+
+  // Wait for previous step to complete first ?
+//  while (this->stepComplete)
+//  {
+//  }
+
+  // Throttle the number of step messages going to the debug output.
+  if (!_req.paused() && _req.iteration() % 1000 == 0)
+  {
+    igndbg << "Network iterations: " << _req.iteration()
+           << std::endl;
+  }
+
+  // Update affinities
+  // TODO(louise) Make PerformerAffinity message incremental instead of absolute
+  for (int i = 0; i < _req.affinity_size(); ++i)
+  {
+    const auto &affinityMsg = _req.affinity(i);
+    const auto &entityId = affinityMsg.entity().id();
+
+    this->dataPtr->ecm->CreateComponent(entityId,
+      components::PerformerAffinity(affinityMsg.secondary_prefix()));
+
+    if (affinityMsg.secondary_prefix() == this->Namespace())
+    {
+      this->performers.insert(entityId);
+      igndbg << "Secondary [" << this->Namespace()
+             << "] assigned affinity to performer [" << entityId << "]."
+             << std::endl;
+    }
+    else
+    {
+      this->dataPtr->ecm->RequestRemoveEntity(entityId);
+    }
+  }
+
+  // Update info
+  UpdateInfo info;
+  info.iterations = _req.iteration();
+  info.paused = _req.paused();
+  info.dt = std::chrono::steady_clock::duration(
+      std::chrono::nanoseconds(_req.stepsize()));
+  info.simTime = std::chrono::steady_clock::duration(
+      std::chrono::seconds(_req.simtime().sec()) +
+      std::chrono::nanoseconds(_req.simtime().nsec()));
+
+  // Update state with all the performer's models
+  std::unordered_set<Entity> models;
+  for (const auto &perf : this->performers)
+  {
+    models.insert(
+        this->dataPtr->ecm->Component<components::ParentEntity>(perf)->Data());
+  }
+  _res = this->dataPtr->ecm->State(models);
+
+  // Step runner
+  this->dataPtr->stepFunction(info);
+
+  // Finish step
+  {
+    std::unique_lock<std::mutex> lock(this->stepMutex);
+    this->stepComplete = true;
+    lock.unlock();
+    this->stepCv.notify_all();
+  }
+
+  return true;
 }
+
