@@ -39,7 +39,7 @@
 #include "ignition/gazebo/components/Pose.hh"
 #include "ignition/gazebo/components/World.hh"
 
-#include "network/components/PerformerActive.hh"
+#include "components/PerformerLevels.hh"
 #include "LevelManager.hh"
 #include "SimulationRunner.hh"
 
@@ -157,7 +157,7 @@ void LevelManager::ReadPerformers(const sdf::ElementPtr &_sdf)
     this->runner->entityCompMgr.CreateComponent(performerEntity,
                                         components::Performer());
     this->runner->entityCompMgr.CreateComponent(performerEntity,
-                                        components::PerformerActive(true));
+                                        components::PerformerLevels());
     this->runner->entityCompMgr.CreateComponent(performerEntity,
                                         components::Name(name));
     this->runner->entityCompMgr.CreateComponent(performerEntity,
@@ -345,21 +345,18 @@ void LevelManager::UpdateLevelsState()
         });
   }
 
-  this->runner->entityCompMgr.Each<components::Performer,
-                                   components::Geometry,
-                                   components::ParentEntity,
-                                   components::PerformerActive>(
-      [&](const Entity &_perfEntity, const components::Performer *,
-          const components::Geometry *_geometry,
-          const components::ParentEntity *_parent,
-          const components::PerformerActive *_active) -> bool
+  this->runner->entityCompMgr.Each<
+         components::Performer,
+         components::PerformerLevels,
+         components::Geometry,
+         components::ParentEntity>(
+      [&](const Entity &_perfEntity,
+          components::Performer *,
+          components::PerformerLevels *_perfLevels,
+          components::Geometry *_geometry,
+          components::ParentEntity *_parent) -> bool
       {
         IGN_PROFILE("EachPerformer");
-
-        if (!_active->Data())
-        {
-          return true;
-        }
 
         auto pose = this->runner->entityCompMgr.Component<components::Pose>(
             _parent->Data());
@@ -376,6 +373,8 @@ void LevelManager::UpdateLevelsState()
         math::AxisAlignedBox performerVolume{
              pose->Data().Pos() - perfBox->Size() / 2,
              pose->Data().Pos() + perfBox->Size() / 2};
+
+        std::vector<Entity> newPerfLevels;
 
         // loop through levels and check for intersections
         // Add all levels with inersections to the levelsToLoad even if they
@@ -403,6 +402,7 @@ void LevelManager::UpdateLevelsState()
 
                 if (region.Intersects(performerVolume))
                 {
+                  newPerfLevels.push_back(_entity);
                   levelsToLoad.push_back(_entity);
                 }
                 else
@@ -413,6 +413,7 @@ void LevelManager::UpdateLevelsState()
                   {
                     if (outerRegion.Intersects(performerVolume))
                     {
+                      newPerfLevels.push_back(_entity);
                       levelsToLoad.push_back(_entity);
                       return true;
                     }
@@ -422,6 +423,9 @@ void LevelManager::UpdateLevelsState()
                 }
                 return true;
               });
+
+        *_perfLevels = components::PerformerLevels(newPerfLevels);
+
         return true;
       });
   {
