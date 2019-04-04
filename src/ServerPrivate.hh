@@ -68,6 +68,9 @@ namespace ignition
       public: bool Run(const uint64_t _iterations,
                  std::optional<std::condition_variable *> _cond = std::nullopt);
 
+      /// \brief Add logging record plugin.
+      public: void AddRecordPlugin(const ServerConfig &_config);
+
       /// \brief Create all entities that exist in the sdf::Root object.
       public: void CreateEntities();
 

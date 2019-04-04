@@ -18,6 +18,7 @@
 #define IGNITION_GAZEBO_SYSTEMS_LOGRECORD_HH_
 
 #include <memory>
+#include <string>
 
 #include <ignition/gazebo/config.hh>
 #include <ignition/gazebo/Export.hh>
