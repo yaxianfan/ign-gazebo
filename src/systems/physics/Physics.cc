@@ -901,6 +901,7 @@ void PhysicsPrivate::UpdateSim(EntityComponentManager &_ecm) const
       [&](const Entity &_entity, components::Joint *,
           components::JointPosition *_jointPos) -> bool
       {
+      std::cout << "JointPosition\n";
         auto jointIt = this->entityJointMap.find(_entity);
         if (jointIt != this->entityJointMap.end())
         {
