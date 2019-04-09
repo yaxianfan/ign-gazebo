@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
-*/
-#ifndef IGNITION_GAZEBO_COMPONENTS_INERTIAL_HH_
-#define IGNITION_GAZEBO_COMPONENTS_INERTIAL_HH_
+ */
+#ifndef IGNITION_GAZEBO_COMPONENTS_PERFORMERLEVELS_HH_
+#define IGNITION_GAZEBO_COMPONENTS_PERFORMERLEVELS_HH_
 
-#include <ignition/math/Inertial.hh>
-#include <ignition/msgs/inertial.pb.h>
-#include <ignition/gazebo/components/Factory.hh>
-#include <ignition/gazebo/components/Component.hh>
+#include <set>
 #include <ignition/gazebo/config.hh>
-#include <ignition/gazebo/Conversions.hh>
+#include <ignition/gazebo/Export.hh>
+
+#include "ignition/gazebo/components/Factory.hh"
+#include "ignition/gazebo/components/Component.hh"
 
 namespace ignition
 {
@@ -33,43 +33,51 @@ inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
 namespace components
 {
   /// \brief Base class which can be extended to add serialization
-  using InertialBase = Component<ignition::math::Inertiald, class InertialTag>;
+  using PerformerLevelsBase =
+      Component<std::set<Entity>, class PerformerLevelsTag>;
 
   /// \brief This component holds an entity's geometry.
-  class Inertial : public InertialBase
+  class PerformerLevels : public PerformerLevelsBase
   {
     // Documentation inherited
-    public: Inertial() : InertialBase()
+    public: PerformerLevels() : PerformerLevelsBase()
     {
     }
 
     // Documentation inherited
-    public: explicit Inertial(const math::Inertiald &_data)
-      : InertialBase(_data)
+    public: explicit PerformerLevels(const std::set<Entity> &_data)
+      : PerformerLevelsBase(_data)
     {
     }
 
     // Documentation inherited
     public: void Serialize(std::ostream &_out) const override
     {
-      auto msg = convert<msgs::Inertial>(this->Data());
-      msg.SerializeToOstream(&_out);
+      for (const auto &level : this->Data())
+      {
+        _out << level << " ";
+      }
     }
 
     // Documentation inherited
     public: void Deserialize(std::istream &_in) override
     {
-      msgs::Inertial msg;
-      msg.ParseFromIstream(&_in);
+      _in.setf(std::ios_base::skipws);
 
-      this->Data() = convert<math::Inertiald>(msg);
+      this->Data().clear();
+
+      for (auto it = std::istream_iterator<Entity>(_in);
+          it != std::istream_iterator<Entity>(); ++it)
+      {
+        this->Data().insert(*it);
+      }
     }
   };
-
-  IGN_GAZEBO_REGISTER_COMPONENT("ign_gazebo_components.Inertial", Inertial)
+  IGN_GAZEBO_REGISTER_COMPONENT("ign_gazebo_components.PerformerLevels",
+      PerformerLevels)
 }
 }
 }
 }
-
 #endif
+

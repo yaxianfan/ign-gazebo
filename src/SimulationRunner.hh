@@ -49,7 +49,6 @@
 
 #include "network/NetworkManager.hh"
 #include "LevelManager.hh"
-#include "SyncManager.hh"
 
 using namespace std::chrono_literals;
 
@@ -121,6 +120,9 @@ namespace ignition
       /// \param[in] _iterations Number of iterations.
       /// \return True if the operation completed successfully.
       public: bool Run(const uint64_t _iterations);
+
+      /// \brief Step
+      public: void Step(UpdateInfo _info);
 
       /// \brief Add system after the simulation runner has been instantiated
       /// \note This actually adds system to a queue. The system is added to the
@@ -319,9 +321,6 @@ namespace ignition
       /// \brief Manager of distributing/receiving network work.
       private: std::unique_ptr<NetworkManager> networkMgr{nullptr};
 
-      /// \brief Manager of network sync.
-      private: std::unique_ptr<SyncManager> syncMgr{nullptr};
-
       /// \brief A pool of worker threads.
       private: common::WorkerPool workerPool{2};
 
@@ -402,7 +401,6 @@ namespace ignition
       public: ServerConfig serverConfig;
 
       friend class LevelManager;
-      friend class SyncManager;
     };
     }
   }
