@@ -18,7 +18,6 @@ pipelines:
           - apt-get -y install
             libignition-cmake2-dev
             libignition-common3-dev
-            libignition-gui-dev
             libignition-math6-eigen3-dev
             libignition-msgs3-dev
             libignition-plugin-dev
@@ -27,8 +26,9 @@ pipelines:
             libignition-transport6-dev
             libsdformat8-dev
             libignition-fuel-tools3-dev
-          #  libignition-rendering-dev
-          #  libignition-sensors-dev
+          #  libignition-gui2-dev
+          #  libignition-rendering2-dev
+          #  libignition-sensors2-dev
           # SDFormat (uncomment if a specific branch is needed)
           # - apt install -y
           #   libxml2-utils
@@ -86,24 +86,24 @@ pipelines:
           # - make -j4 install
           # - cd ../..
           # Ignition gui (uncomment if a specific branch is needed)
-          # - apt install -y
-          #   qtbase5-dev libtinyxml2-dev libprotoc-dev libprotobuf-dev
-          #   qtdeclarative5-dev
-          #   qtquickcontrols2-5-dev
-          #   qml-module-qtquick2
-          #   qml-module-qtquick-controls
-          #   qml-module-qtquick-controls2
-          #   qml-module-qtquick-dialogs
-          #   qml-module-qtquick-layouts
-          #   qml-module-qt-labs-folderlistmodel
-          #   qml-module-qt-labs-settings
-          # - hg clone http://bitbucket.org/ignitionrobotics/ign-gui -b gz11
-          # - cd ign-gui
-          # - mkdir build
-          # - cd build
-          # - cmake .. -DBUILD_TESTING=false
-          # - make -j4 install
-          # - cd ../..
+          - apt install -y
+            qtbase5-dev libtinyxml2-dev libprotoc-dev libprotobuf-dev
+            qtdeclarative5-dev
+            qtquickcontrols2-5-dev
+            qml-module-qtquick2
+            qml-module-qtquick-controls
+            qml-module-qtquick-controls2
+            qml-module-qtquick-dialogs
+            qml-module-qtquick-layouts
+            qml-module-qt-labs-folderlistmodel
+            qml-module-qt-labs-settings
+          - hg clone http://bitbucket.org/ignitionrobotics/ign-gui -b default
+          - cd ign-gui
+          - mkdir build
+          - cd build
+          - cmake .. -DBUILD_TESTING=false
+          - make -j4 install
+          - cd ../..
           # Ignition Physics (uncomment if a specific branch is needed)
           # - apt-get -y install
           #   libdart6-dev
