@@ -14,25 +14,29 @@
  * limitations under the License.
  *
  */
-
-#include <ignition/msgs/double.pb.h>
+#include <ignition/msgs/pose.pb.h>
+#include <ignition/common/Time.hh>
+#include <ignition/math/Pose3.hh>
 #include <ignition/plugin/Register.hh>
 #include <ignition/transport/Node.hh>
 
-#include "ignition/gazebo/components/JointVelocityCmd.hh"
+#include "ignition/gazebo/components/Joint.hh"
+#include "ignition/gazebo/components/Name.hh"
+#include "ignition/gazebo/components/ParentEntity.hh"
+#include "ignition/gazebo/components/PendingJointForce.hh"
 #include "ignition/gazebo/Model.hh"
 
-#include "JointController.hh"
+#include "ApplyJointForce.hh"
 
 using namespace ignition;
 using namespace gazebo;
 using namespace systems;
 
-class ignition::gazebo::systems::JointControllerPrivate
+class ignition::gazebo::systems::ApplyJointForcePrivate
 {
-  /// \brief Callback for velocity subscription
-  /// \param[in] _msg Velocity message
-  public: void OnCmdVel(const ignition::msgs::Double &_msg);
+  /// \brief Callback for joint force subscription
+  /// \param[in] _msg Joint force message
+  public: void OnCmdForce(const ignition::msgs::Double &_msg);
 
   /// \brief Ignition communication node.
   public: transport::Node node;
@@ -43,24 +47,24 @@ class ignition::gazebo::systems::JointControllerPrivate
   /// \brief Joint name
   public: std::string jointName;
 
-  /// \brief Commanded joint velocity
-  public: double jointVelCmd;
+  /// \brief Commanded joint force
+  public: double jointForceCmd;
 
-  /// \brief mutex to protect jointVelCmd
-  public: std::mutex jointVelCmdMutex;
+  /// \brief mutex to protect jointForceCmd
+  public: std::mutex jointForceCmdMutex;
 
   /// \brief Model interface
   public: Model model{kNullEntity};
 };
 
 //////////////////////////////////////////////////
-JointController::JointController()
-  : dataPtr(std::make_unique<JointControllerPrivate>())
+ApplyJointForce::ApplyJointForce()
+  : dataPtr(std::make_unique<ApplyJointForcePrivate>())
 {
 }
 
 //////////////////////////////////////////////////
-void JointController::Configure(const Entity &_entity,
+void ApplyJointForce::Configure(const Entity &_entity,
     const std::shared_ptr<const sdf::Element> &_sdf,
     EntityComponentManager &_ecm,
     EventManager &/*_eventMgr*/)
@@ -69,33 +73,39 @@ void JointController::Configure(const Entity &_entity,
 
   if (!this->dataPtr->model.Valid(_ecm))
   {
-    ignerr << "JointController plugin should be attached to a model entity. "
+    ignerr << "ApplyJointForce plugin should be attached to a model entity. "
            << "Failed to initialize." << std::endl;
     return;
   }
 
+  auto sdfClone = _sdf->Clone();
+
   // Get params from SDF
-  this->dataPtr->jointName = _sdf->Get<std::string>("joint_name");
+  auto sdfElem = sdfClone->GetElement("joint_name");
+  if (sdfElem)
+  {
+    this->dataPtr->jointName = sdfElem->Get<std::string>();
+  }
 
   if (this->dataPtr->jointName == "")
   {
-    ignerr << "JointController found an empty jointName parameter. "
+    ignerr << "ApplyJointForce found an empty jointName parameter. "
            << "Failed to initialize.";
     return;
   }
 
   // Subscribe to commands
   std::string topic{"/model/" + this->dataPtr->model.Name(_ecm) + "/joint/" +
-                    this->dataPtr->jointName + "/cmd_vel"};
-  this->dataPtr->node.Subscribe(topic, &JointControllerPrivate::OnCmdVel,
+                    this->dataPtr->jointName + "/cmd_force"};
+  this->dataPtr->node.Subscribe(topic, &ApplyJointForcePrivate::OnCmdForce,
                                 this->dataPtr.get());
 
-  ignmsg << "JointController subscribing to Double messages on [" << topic
+  ignmsg << "ApplyJointForce subscribing to Double messages on [" << topic
          << "]" << std::endl;
 }
 
 //////////////////////////////////////////////////
-void JointController::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
+void ApplyJointForce::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
     ignition::gazebo::EntityComponentManager &_ecm)
 {
   // If the joint hasn't been identified yet, look for it
@@ -112,35 +122,35 @@ void JointController::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
   if (_info.paused)
     return;
 
-  std::lock_guard<std::mutex> lock(this->dataPtr->jointVelCmdMutex);
+  std::lock_guard<std::mutex> lock(this->dataPtr->jointForceCmdMutex);
 
-  // Update joint velocity
-  auto vel =
-      _ecm.Component<components::JointVelocityCmd>(this->dataPtr->jointEntity);
+  // Update joint force
+  auto force = _ecm.Component<components::PendingJointForce>(
+      this->dataPtr->jointEntity);
 
-  if (vel == nullptr)
+  if (force == nullptr)
   {
-    _ecm.CreateComponent(this->dataPtr->jointEntity,
-                         components::JointVelocityCmd({
-                           this->dataPtr->jointVelCmd, 0.0, 0.0}));
+    _ecm.CreateComponent(
+        this->dataPtr->jointEntity,
+        components::PendingJointForce({this->dataPtr->jointForceCmd}));
   }
   else
   {
-    vel->Data()[0] = this->dataPtr->jointVelCmd;
+    force->Data()[0] += this->dataPtr->jointForceCmd;
   }
 }
 
 //////////////////////////////////////////////////
-void JointControllerPrivate::OnCmdVel(const msgs::Double &_msg)
+void ApplyJointForcePrivate::OnCmdForce(const msgs::Double &_msg)
 {
-  std::lock_guard<std::mutex> lock(this->jointVelCmdMutex);
-  this->jointVelCmd = _msg.data();
+  std::lock_guard<std::mutex> lock(this->jointForceCmdMutex);
+  this->jointForceCmd = _msg.data();
 }
 
-IGNITION_ADD_PLUGIN(JointController,
+IGNITION_ADD_PLUGIN(ApplyJointForce,
                     ignition::gazebo::System,
-                    JointController::ISystemConfigure,
-                    JointController::ISystemPreUpdate)
+                    ApplyJointForce::ISystemConfigure,
+                    ApplyJointForce::ISystemPreUpdate)
 
-IGNITION_ADD_PLUGIN_ALIAS(JointController,
-                          "ignition::gazebo::systems::JointController")
+IGNITION_ADD_PLUGIN_ALIAS(ApplyJointForce,
+                          "ignition::gazebo::systems::ApplyJointForce")

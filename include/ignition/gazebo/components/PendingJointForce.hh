@@ -14,8 +14,10 @@
  * limitations under the License.
  *
  */
-#ifndef IGNITION_GAZEBO_COMPONENTS_JOINTVELOCITY_HH_
-#define IGNITION_GAZEBO_COMPONENTS_JOINTVELOCITY_HH_
+#ifndef IGNITION_GAZEBO_COMPONENTS_PENDINGJOINTFORCE_HH_
+#define IGNITION_GAZEBO_COMPONENTS_PENDINGJOINTFORCE_HH_
+
+#include <vector>
 
 #include <ignition/gazebo/components/Factory.hh>
 #include <ignition/gazebo/components/Component.hh>
@@ -29,12 +31,14 @@ namespace gazebo
 inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
 namespace components
 {
-  /// \brief Velocity of a joint's axes in SI units (rad/s for revolute,
-  /// m/s for prismatic).
-  using JointVelocity = Component<std::array<double, 3>,
-        class JointVelocityTag>;
-  IGN_GAZEBO_REGISTER_COMPONENT(
-      "ign_gazebo_components.JointVelocity", JointVelocity)
+  /// \brief Pending joint forces (or torques) to be applied to a joint
+  /// in SI units (Nm for revolute, N for prismatic). The component wraps a
+  /// std::vector and systems that set this component need to ensure that the
+  /// vector has the same size as the degrees of freedom of the joint.
+  using PendingJointForce =
+      Component<std::vector<double>, class PendingJointForceTag>;
+  IGN_GAZEBO_REGISTER_COMPONENT("ign_gazebo_components.PendingJointForce",
+                                PendingJointForce)
 }
 }
 }
