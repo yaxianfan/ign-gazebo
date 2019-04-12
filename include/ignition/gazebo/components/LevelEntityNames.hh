@@ -58,9 +58,9 @@ namespace components
     // Documentation inherited
     public: void Serialize(std::ostream &_out) const override
     {
-      for (const auto &level : this->Data())
+      for (const auto &entity : this->Data())
       {
-        _out << level << " ";
+        _out << entity << " ";
       }
     }
 
