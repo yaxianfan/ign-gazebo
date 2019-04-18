@@ -24,6 +24,7 @@
 #include <ignition/common/Time.hh>
 #include <ignition/math/Helpers.hh>
 
+#include <ignition/rendering/gziface/SceneManager.hh>
 #include <ignition/rendering/RenderEngine.hh>
 #include <ignition/rendering/RenderingIface.hh>
 #include <ignition/rendering/Scene.hh>
@@ -43,11 +44,12 @@
 #include "ignition/gazebo/components/Name.hh"
 #include "ignition/gazebo/components/ParentEntity.hh"
 #include "ignition/gazebo/components/Pose.hh"
+#include "ignition/gazebo/components/Scene.hh"
 #include "ignition/gazebo/components/Sensor.hh"
 #include "ignition/gazebo/components/Visual.hh"
+#include "ignition/gazebo/components/World.hh"
 #include "ignition/gazebo/EntityComponentManager.hh"
 
-#include "SceneManager.hh"
 #include "Sensors.hh"
 
 using namespace ignition;
@@ -80,7 +82,7 @@ class ignition::gazebo::systems::SensorsPrivate
   public: std::string engineName;
 
   /// \brief Scene manager
-  public: SceneManager sceneManager;
+  public: rendering::gziface::SceneManager sceneManager;
 
   /// \brief Pointer to rendering engine.
   public: ignition::rendering::RenderEngine *engine{nullptr};
@@ -156,6 +158,21 @@ void Sensors::PostUpdate(const UpdateInfo &_info,
 //////////////////////////////////////////////////
 void SensorsPrivate::CreateRenderingEntities(const EntityComponentManager &_ecm)
 {
+  // Get all the new worlds
+  // TODO(anyone) Only one scene is supported for now
+  // extend the sensor system to support mutliple scenes in the future
+  _ecm.EachNew<components::World, components::Scene>(
+      [&](const Entity & /*_entity*/,
+        const components::World * /* _world */,
+        const components::Scene *_scene)->bool
+      {
+        const sdf::Scene &sceneSdf = _scene->Data();
+        this->scene->SetAmbientLight(sceneSdf.Ambient());
+        this->scene->SetBackgroundColor(sceneSdf.Background());
+        return true;
+      });
+
+
   _ecm.EachNew<components::Model, components::Name, components::Pose,
             components::ParentEntity>(
       [&](const Entity &_entity,
