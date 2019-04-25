@@ -137,6 +137,11 @@ bool NetworkManagerPrimary::Step(const UpdateInfo &_info)
   // Affinities that changed this step
   this->PopulateAffinities(step);
 
+  // State updates
+  // TODO(louise) Distributed secondaries only need performer, but GUI
+  // needs all entities
+  step.mutable_state()->CopyFrom(this->dataPtr->ecm->ChangedState());
+
   // Check all secondaries are ready to receive steps - only do this once at
   // startup
   if (!this->SecondariesCanStep())
