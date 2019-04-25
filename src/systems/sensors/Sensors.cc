@@ -43,8 +43,10 @@
 #include "ignition/gazebo/components/Name.hh"
 #include "ignition/gazebo/components/ParentEntity.hh"
 #include "ignition/gazebo/components/Pose.hh"
+#include "ignition/gazebo/components/Scene.hh"
 #include "ignition/gazebo/components/Sensor.hh"
 #include "ignition/gazebo/components/Visual.hh"
+#include "ignition/gazebo/components/World.hh"
 #include "ignition/gazebo/EntityComponentManager.hh"
 
 #include "SceneManager.hh"
@@ -83,11 +85,15 @@ class ignition::gazebo::systems::SensorsPrivate
   public: SceneManager sceneManager;
 
   /// \brief Pointer to rendering engine.
-  public: ignition::rendering::RenderEngine *engine;
+  public: ignition::rendering::RenderEngine *engine{nullptr};
 
   /// \brief Map of Gazebo entities to their respective IDs within ign-sensors.
   /// Note that both of these are different from node's ID in ign-rendering.
   public: std::map<Entity, uint64_t> entityToSensorId;
+
+  /// \brief rendering scene to be managed by the scene manager and used to
+  /// generate sensor data
+  public: rendering::ScenePtr scene;
 };
 
 //////////////////////////////////////////////////
@@ -129,11 +135,11 @@ void Sensors::PostUpdate(const UpdateInfo &_info,
              << this->dataPtr->engineName << "]" << std::endl;
       return;
     }
-    auto scene = this->dataPtr->engine->CreateScene("scene");
+
+    this->dataPtr->scene = this->dataPtr->engine->CreateScene("scene");
 
     // Create simulation runner sensor manager
-    this->dataPtr->sensorManager.SetRenderingScene(scene);
-    this->dataPtr->sceneManager.SetScene(scene);
+    this->dataPtr->sceneManager.SetScene(this->dataPtr->scene);
 
     this->dataPtr->initialized = true;
   }
@@ -152,6 +158,21 @@ void Sensors::PostUpdate(const UpdateInfo &_info,
 //////////////////////////////////////////////////
 void SensorsPrivate::CreateRenderingEntities(const EntityComponentManager &_ecm)
 {
+  // Get all the new worlds
+  // TODO(anyone) Only one scene is supported for now
+  // extend the sensor system to support mutliple scenes in the future
+  _ecm.EachNew<components::World, components::Scene>(
+      [&](const Entity & /*_entity*/,
+        const components::World * /* _world */,
+        const components::Scene *_scene)->bool
+      {
+        const sdf::Scene &sceneSdf = _scene->Data();
+        this->scene->SetAmbientLight(sceneSdf.Ambient());
+        this->scene->SetBackgroundColor(sceneSdf.Background());
+        return true;
+      });
+
+
   _ecm.EachNew<components::Model, components::Name, components::Pose,
             components::ParentEntity>(
       [&](const Entity &_entity,
@@ -250,8 +271,12 @@ void SensorsPrivate::CreateRenderingEntities(const EntityComponentManager &_ecm)
           ignerr << "Failed to create sensor [" << scopedName << "]"
                  << std::endl;
         }
+
+        // Set the scene so it can create the rendering camera
+        sensor->SetScene(this->scene);
+
         // Add to the system's scene manager
-        else if (!this->sceneManager.AddSensor(
+        if (!this->sceneManager.AddSensor(
             _entity, sensor->RenderingCamera()->Id(), _parent->Data()))
         {
           ignerr << "Failed to create sensor [" << scopedName << "]"
@@ -261,6 +286,7 @@ void SensorsPrivate::CreateRenderingEntities(const EntityComponentManager &_ecm)
         {
           this->entityToSensorId[_entity] = sensor->Id();
           sensor->SetParent(parent->Name());
+          sensor->SetScene(this->scene);
         }
 
         return true;
@@ -275,7 +301,7 @@ void SensorsPrivate::CreateRenderingEntities(const EntityComponentManager &_ecm)
         // two camera models with the same camera sensor name
         // causes name conflicts. We'll need to use scoped names
         // TODO(anyone) do this in ign-sensors?
-        auto parent = sceneManager.NodeById(_parent->Data());
+        auto parent = this->sceneManager.NodeById(_parent->Data());
         if (!parent)
         {
           ignerr << "Failed to create sensor for entity [" << _entity
@@ -297,8 +323,12 @@ void SensorsPrivate::CreateRenderingEntities(const EntityComponentManager &_ecm)
           ignerr << "Failed to create sensor [" << scopedName << "]"
                  << std::endl;
         }
+
+        // Set the scene so the it can create the rendering depth camera
+        sensor->SetScene(this->scene);
+
         // Add to the system's scene manager
-        else if (!this->sceneManager.AddSensor(
+        if (!this->sceneManager.AddSensor(
             _entity, sensor->DepthCamera()->Id(), _parent->Data()))
         {
           ignerr << "Failed to create sensor [" << scopedName << "]"
@@ -341,8 +371,12 @@ void SensorsPrivate::CreateRenderingEntities(const EntityComponentManager &_ecm)
           ignerr << "Failed to create sensor [" << scopedName << "]"
                  << std::endl;
         }
+
+        // Set the scene so it can create the gpu ray cameras
+        sensor->SetScene(this->scene);
+
         // Add to the system's scene manager
-        else if (!this->sceneManager.AddSensor(
+        if (!this->sceneManager.AddSensor(
             _entity, sensor->GpuRays()->Id(), _parent->Data()))
         {
           ignerr << "Failed to add the sensor [" << scopedName << "] to "

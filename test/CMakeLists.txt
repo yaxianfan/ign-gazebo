@@ -123,6 +123,7 @@ endfunction()
 
 FindDRI()
 
+add_subdirectory(benchmark)
 add_subdirectory(integration)
 add_subdirectory(performance)
 add_subdirectory(plugins)

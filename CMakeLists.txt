@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.5.1 FATAL_ERROR)
 #============================================================================
 # Initialize the project
 #============================================================================
-project(ignition-gazebo1 VERSION 1.1.0)
+project(ignition-gazebo2 VERSION 2.0.0)
 
 #============================================================================
 # Find ignition-cmake
@@ -14,7 +14,7 @@ find_package(ignition-cmake2 REQUIRED)
 #============================================================================
 # Configure the project
 #============================================================================
-ign_configure_project()
+ign_configure_project(VERSION_SUFFIX pre1)
 
 #============================================================================
 # Set project-specific options
@@ -41,13 +41,13 @@ set(IGN_PLUGIN_VER ${ignition-plugin1_VERSION_MAJOR})
 
 #--------------------------------------
 # Find ignition-transport
-ign_find_package(ignition-transport6 REQUIRED COMPONENTS log)
-set(IGN_TRANSPORT_VER ${ignition-transport6_VERSION_MAJOR})
+ign_find_package(ignition-transport7 REQUIRED COMPONENTS log)
+set(IGN_TRANSPORT_VER ${ignition-transport7_VERSION_MAJOR})
 
 #--------------------------------------
 # Find ignition-msgs
-ign_find_package(ignition-msgs3 REQUIRED)
-set(IGN_MSGS_VER ${ignition-msgs3_VERSION_MAJOR})
+ign_find_package(ignition-msgs4 REQUIRED)
+set(IGN_MSGS_VER ${ignition-msgs4_VERSION_MAJOR})
 
 #--------------------------------------
 # Find ignition-common
@@ -62,8 +62,8 @@ set(IGN_FUEL_TOOLS_VER ${ignition-fuel_tools3_VERSION_MAJOR})
 
 #--------------------------------------
 # Find ignition-gui
-ign_find_package(ignition-gui1 REQUIRED)
-set(IGN_GUI_VER ${ignition-gui1_VERSION_MAJOR})
+ign_find_package(ignition-gui2 REQUIRED)
+set(IGN_GUI_VER ${ignition-gui2_VERSION_MAJOR})
 ign_find_package (Qt5
   COMPONENTS
     Core
@@ -86,8 +86,18 @@ set(IGN_PHYSICS_VER ${ignition-physics1_VERSION_MAJOR})
 
 #--------------------------------------
 # Find ignition-sensors
-ign_find_package(ignition-sensors1 REQUIRED COMPONENTS camera gpu_lidar logical_camera depth_camera)
-set(IGN_SENSORS_VER ${ignition-sensors1_VERSION_MAJOR})
+ign_find_package(ignition-sensors2 REQUIRED
+  COMPONENTS
+    rendering
+    altimeter
+    camera
+    gpu_lidar
+    imu
+    logical_camera
+    magnetometer
+    depth_camera
+)
+set(IGN_SENSORS_VER ${ignition-sensors2_VERSION_MAJOR})
 
 #--------------------------------------
 # Find gflags
@@ -108,7 +118,7 @@ ign_find_package(IgnProtobuf
                  REQUIRED
                  COMPONENTS all
                  PRETTY Protobuf)
-set(PROTOBUF_IMPORT_DIRS ${ignition-msgs3_INCLUDE_DIRS})
+set(PROTOBUF_IMPORT_DIRS ${ignition-msgs4_INCLUDE_DIRS})
 
 #============================================================================
 # Configure the build
