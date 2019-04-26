@@ -100,6 +100,14 @@ ign_find_package(ignition-sensors2 REQUIRED
 set(IGN_SENSORS_VER ${ignition-sensors2_VERSION_MAJOR})
 
 #--------------------------------------
+# Find ignition-rendering
+ign_find_package(ignition-rendering2 REQUIRED
+  COMPONENTS
+    gziface
+)
+set(IGN_RENDERING_VER ${ignition-rendering2_VERSION_MAJOR})
+
+#--------------------------------------
 # Find gflags
 ign_find_package(gflags
     REQUIRED
@@ -119,6 +127,11 @@ ign_find_package(IgnProtobuf
                  COMPONENTS all
                  PRETTY Protobuf)
 set(PROTOBUF_IMPORT_DIRS ${ignition-msgs4_INCLUDE_DIRS})
+
+# Plugin install dir
+set(IGNITION_GAZEBO_PLUGIN_INSTALL_DIR
+  ${CMAKE_INSTALL_PREFIX}/${IGN_LIB_INSTALL_DIR}/ign-${IGN_DESIGNATION}-${PROJECT_VERSION_MAJOR}/plugins
+)
 
 #============================================================================
 # Configure the build
