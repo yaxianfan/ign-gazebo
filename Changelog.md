@@ -3,7 +3,7 @@
 ### Ignition Gazebo 2.X.X
 
 1. Use scene ambient and background color information in sensor
-   configuration. 
+   configuration.
     * [Pull Request 268](https://bitbucket.org/ignitionrobotics/ign-gazebo/pull-requests/268)
 
 1. Added an SDF message to the start of log files.

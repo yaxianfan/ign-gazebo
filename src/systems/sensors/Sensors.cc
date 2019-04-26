@@ -24,6 +24,7 @@
 #include <ignition/common/Time.hh>
 #include <ignition/math/Helpers.hh>
 
+#include <ignition/rendering/gziface/SceneManager.hh>
 #include <ignition/rendering/RenderEngine.hh>
 #include <ignition/rendering/RenderingIface.hh>
 #include <ignition/rendering/Scene.hh>
@@ -49,7 +50,6 @@
 #include "ignition/gazebo/components/World.hh"
 #include "ignition/gazebo/EntityComponentManager.hh"
 
-#include "SceneManager.hh"
 #include "Sensors.hh"
 
 using namespace ignition;
@@ -82,7 +82,7 @@ class ignition::gazebo::systems::SensorsPrivate
   public: std::string engineName;
 
   /// \brief Scene manager
-  public: SceneManager sceneManager;
+  public: rendering::gziface::SceneManager sceneManager;
 
   /// \brief Pointer to rendering engine.
   public: ignition::rendering::RenderEngine *engine{nullptr};
@@ -95,6 +95,8 @@ class ignition::gazebo::systems::SensorsPrivate
   /// generate sensor data
   public: rendering::ScenePtr scene;
 };
+
+#include <unistd.h>
 
 //////////////////////////////////////////////////
 Sensors::Sensors() : System(), dataPtr(std::make_unique<SensorsPrivate>())
@@ -115,6 +117,8 @@ void Sensors::Configure(const Entity &_id,
       _sdf->Get<std::string>("render_engine", "ogre").first;
 
   this->dataPtr->sceneManager.SetWorldId(_id);
+
+  std::cerr << " sensors pid " << ::getpid() << std::endl;
 }
 
 //////////////////////////////////////////////////

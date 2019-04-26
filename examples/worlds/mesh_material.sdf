@@ -1,65 +1,26 @@
 <?xml version="1.0" ?>
-<!--
-  Try inserting a model:
-
-ign service -s /world/empty/create \
---reqtype ignition.msgs.EntityFactory \
---reptype ignition.msgs.Boolean \
---timeout 300 \
---req 'sdf: '\
-'"<?xml version=\"1.0\" ?>'\
-'<sdf version=\"1.6\">'\
-'<model name=\"spawned_model\">'\
-'<link name=\"link\">'\
-'<visual name=\"visual\">'\
-'<geometry><sphere><radius>1.0</radius></sphere></geometry>'\
-'</visual>'\
-'<collision name=\"visual\">'\
-'<geometry><sphere><radius>1.0</radius></sphere></geometry>'\
-'</collision>'\
-'</link>'\
-'</model>'\
-'</sdf>" '\
-'pose: {position: {z: 10}} '\
-'name: "new_name" '\
-'allow_renaming: true'
-
-  Then try deleting it:
-
-ign service -s /world/empty/remove \
---reqtype ignition.msgs.Entity \
---reptype ignition.msgs.Boolean \
---timeout 300 \
---req 'name: "spawned_model" type: MODEL'
-
-  Try inserting a light:
-
-ign service -s /world/empty/create --reqtype ignition.msgs.EntityFactory --reptype ignition.msgs.Boolean --timeout 300 --req 'sdf: '\
-'"<?xml version=\"1.0\" ?>'\
-'<sdf version=\"1.6\">'\
-'<light name=\"spawned_light\" type=\"directional\">'\
-'<pose>0 0 10 0.1 1.0 0</pose>'\
-'</light>'\
-'</sdf>"'
-
-  Then try deleting it:
-
-ign service -s /world/empty/remove \
---reqtype ignition.msgs.Entity \
---reptype ignition.msgs.Boolean \
---timeout 300 \
---req 'name: "spawned_light" type: LIGHT'
-
--->
 <sdf version="1.6">
-  <world name="empty">
+  <world name="diff_drive">
     <physics name="1ms" type="ode">
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1.0</real_time_factor>
     </physics>
+
+    <scene>
+      <ambient>1.0 1.0 1.0 1.0</ambient>
+      <background>0.8 0.8 0.8 1.0</background>
+      <grid>false</grid>
+      <origin_visual>false</origin_visual>
+    </scene>
+
     <plugin
       filename="libignition-gazebo-physics-system.so"
       name="ignition::gazebo::systems::Physics">
+    </plugin>
+    <plugin
+      filename="libignition-gazebo-sensors-system.so"
+      name="ignition::gazebo::systems::Sensors">
+      <render_engine>ogre2</render_engine>
     </plugin>
     <plugin
       filename="libignition-gazebo-user-commands-system.so"
@@ -69,15 +30,11 @@ ign service -s /world/empty/remove \
       filename="libignition-gazebo-scene-broadcaster-system.so"
       name="ignition::gazebo::systems::SceneBroadcaster">
     </plugin>
-    <plugin
-      filename="libignition-gazebo-contact-system.so"
-      name="ignition::gazebo::systems::Contact">
-    </plugin>
 
     <gui fullscreen="0">
 
       <!-- 3D scene -->
-      <plugin filename="RenderWindow" name="3D View">
+      <plugin filename="Scene3D" name="3D View">
         <ignition-gui>
           <title>3D View</title>
           <property type="bool" key="showTitleBar">false</property>
@@ -86,13 +43,13 @@ ign service -s /world/empty/remove \
 
         <engine>ogre2</engine>
         <scene>scene</scene>
-        <ambient_light>0.4 0.4 0.4</ambient_light>
+        <ambient_light>1.0 1.0 1.0</ambient_light>
         <background_color>0.8 0.8 0.8</background_color>
         <camera_pose>-6 0 6 0 0.5 0</camera_pose>
-        <service>/world/empty/scene/info</service>
-        <pose_topic>/world/empty/pose/info</pose_topic>
-        <scene_topic>/world/empty/scene/info</scene_topic>
-        <deletion_topic>/world/empty/scene/deletion</deletion_topic>
+        <service>/world/diff_drive/scene/info</service>
+        <pose_topic>/world/diff_drive/pose/info</pose_topic>
+        <scene_topic>/world/diff_drive/scene/info</scene_topic>
+        <deletion_topic>/world/diff_drive/scene/deletion</deletion_topic>
       </plugin>
 
       <!-- World control -->
@@ -115,8 +72,8 @@ ign service -s /world/empty/remove \
         <play_pause>true</play_pause>
         <step>true</step>
         <start_paused>true</start_paused>
-        <service>/world/empty/control</service>
-        <stats_topic>/world/empty/stats</stats_topic>
+        <service>/world/diff_drive/control</service>
+        <stats_topic>/world/diff_drive/stats</stats_topic>
 
       </plugin>
 
@@ -141,12 +98,14 @@ ign service -s /world/empty/remove \
         <real_time>true</real_time>
         <real_time_factor>true</real_time_factor>
         <iterations>true</iterations>
-        <topic>/world/empty/stats</topic>
+        <topic>/world/diff_drive/stats</topic>
 
       </plugin>
 
-      <!-- Entity tree -->
-      <plugin filename="EntityTree" name="Entity tree">
+      <plugin filename="ImageDisplay" name="Image Display">
+        <ignition-gui>
+          <property key="state" type="string">docked</property>
+        </ignition-gui>
       </plugin>
 
     </gui>
@@ -164,6 +123,55 @@ ign service -s /world/empty/remove \
       </attenuation>
       <direction>-0.5 0.1 -0.9</direction>
     </light>
+
+
+    <model name="camera">
+      <static>true</static>
+      <pose>3 0 1.0 0 0.0 3.14</pose>
+      <link name="link">
+        <pose>0.05 0.05 0.05 0 0 0</pose>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.1</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.1</size>
+            </box>
+          </geometry>
+        </visual>
+        <sensor name="camera" type="camera">
+          <camera>
+            <horizontal_fov>1.047</horizontal_fov>
+            <image>
+              <width>320</width>
+              <height>240</height>
+            </image>
+            <clip>
+              <near>0.1</near>
+              <far>100</far>
+            </clip>
+          </camera>
+          <always_on>1</always_on>
+          <update_rate>30</update_rate>
+          <visualize>true</visualize>
+          <topic>camera</topic>
+        </sensor>
+      </link>
+    </model>
+
+
+    <!-- Rescue Randy -->
+    <include>
+      <static>true</static>
+      <name>Rescue Randy</name>
+      <pose>0 0 0 0 0 1.57</pose>
+      <uri>https://fuel.ignitionrobotics.org/1.0/iche033/models/Rescue Randy</uri>
+    </include>
 
     <model name="ground_plane">
       <static>true</static>
@@ -190,6 +198,8 @@ ign service -s /world/empty/remove \
         </visual>
       </link>
     </model>
+
+
 
   </world>
 </sdf>
