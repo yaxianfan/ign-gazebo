@@ -1,6 +1,7 @@
 set (CMAKE_AUTOMOC ON)
 
 set (gui_headers
+  GuiSystem.hh
   TmpIface.hh
 )
 
