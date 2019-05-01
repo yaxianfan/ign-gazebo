@@ -31,6 +31,8 @@
 
 #include <ignition/common/Console.hh>
 
+#include <sdf/AirPressure.hh>
+#include <sdf/Altimeter.hh>
 #include <sdf/Box.hh>
 #include <sdf/Cylinder.hh>
 #include <sdf/Geometry.hh>
@@ -508,6 +510,52 @@ msgs::Sensor ignition::gazebo::convert(const sdf::Sensor &_in)
         << "sensor pointer is null.\n";
     }
   }
+  else if (_in.Type() == sdf::SensorType::ALTIMETER)
+  {
+    if (_in.AltimeterSensor())
+    {
+      msgs::AltimeterSensor *sensor = out.mutable_altimeter();
+
+      if (_in.AltimeterSensor()->VerticalPositionNoise().Type()
+          != sdf::NoiseType::NONE)
+      {
+        ignition::gazebo::set(sensor->mutable_vertical_position_noise(),
+            _in.AltimeterSensor()->VerticalPositionNoise());
+      }
+      if (_in.AltimeterSensor()->VerticalVelocityNoise().Type()
+          != sdf::NoiseType::NONE)
+      {
+        ignition::gazebo::set(sensor->mutable_vertical_velocity_noise(),
+            _in.AltimeterSensor()->VerticalVelocityNoise());
+      }
+    }
+    else
+    {
+      ignerr << "Attempting to convert an altimeter SDF sensor, but the "
+        << "sensor pointer is null.\n";
+    }
+  }
+  else if (_in.Type() == sdf::SensorType::AIR_PRESSURE)
+  {
+    if (_in.AirPressureSensor())
+    {
+      msgs::AirPressureSensor *sensor = out.mutable_air_pressure();
+
+      if (_in.AirPressureSensor()->PressureNoise().Type()
+          != sdf::NoiseType::NONE)
+      {
+        ignition::gazebo::set(sensor->mutable_pressure_noise(),
+            _in.AirPressureSensor()->PressureNoise());
+      }
+      sensor->set_reference_altitude(
+          _in.AirPressureSensor()->ReferenceAltitude());
+    }
+    else
+    {
+      ignerr << "Attempting to convert an air pressure SDF sensor, but the "
+        << "sensor pointer is null.\n";
+    }
+  }
 
   return out;
 }
@@ -552,6 +600,52 @@ sdf::Sensor ignition::gazebo::convert(const msgs::Sensor &_in)
     }
 
     out.SetMagnetometerSensor(sensor);
+  }
+  else if (out.Type() == sdf::SensorType::ALTIMETER)
+  {
+    sdf::Altimeter sensor;
+    if (_in.has_altimeter())
+    {
+      if (_in.altimeter().has_vertical_position_noise())
+      {
+        sensor.SetVerticalPositionNoise(ignition::gazebo::convert<sdf::Noise>(
+              _in.altimeter().vertical_position_noise()));
+      }
+
+      if (_in.altimeter().has_vertical_velocity_noise())
+      {
+        sensor.SetVerticalVelocityNoise(ignition::gazebo::convert<sdf::Noise>(
+              _in.altimeter().vertical_velocity_noise()));
+      }
+    }
+    else
+    {
+      ignerr << "Attempting to convert an altimeter sensor message, but the "
+        << "message does not have a altimeter nested message.\n";
+    }
+
+    out.SetAltimeterSensor(sensor);
+  }
+  else if (out.Type() == sdf::SensorType::AIR_PRESSURE)
+  {
+    sdf::AirPressure sensor;
+    if (_in.has_air_pressure())
+    {
+      if (_in.air_pressure().has_pressure_noise())
+      {
+        sensor.SetPressureNoise(ignition::gazebo::convert<sdf::Noise>(
+              _in.air_pressure().pressure_noise()));
+      }
+
+      sensor.SetReferenceAltitude(_in.air_pressure().reference_altitude());
+    }
+    else
+    {
+      ignerr << "Attempting to convert an air pressure sensor message, but the "
+        << "message does not have an air pressure nested message.\n";
+    }
+
+    out.SetAirPressureSensor(sensor);
   }
 
   return out;

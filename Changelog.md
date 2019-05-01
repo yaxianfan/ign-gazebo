@@ -2,6 +2,9 @@
 
 ### Ignition Gazebo 2.X.X
 
+1. Added system for ignition::sensors::AirPressureSensor.
+    * [Pull Request XXX](https://bitbucket.org/ignitionrobotics/ign-gazebo/pull-requests/XXX)
+
 1. Support conversion and serialization of scene and light components
     * [Pull Request 297](https://bitbucket.org/ignitionrobotics/ign-gazebo/pull-requests/297)
 
@@ -14,6 +17,10 @@
     
 1. Update Magnetometer component to use sdf::Sensor object instead of an sdf::ElementPtr.
     * [Pull Request 272](https://bitbucket.org/ignitionrobotics/ign-gazebo/pull-requests/272)
+
+1. Update Altimeter component to use sdf::Sensor object instead of an
+   sdf::ElementPtr.
+    * [Pull Request 286](https://bitbucket.org/ignitionrobotics/ign-gazebo/pull-requests/286)
 
 ## Ignition Gazebo 1.x
 

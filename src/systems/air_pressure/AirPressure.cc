@@ -14,8 +14,7 @@
  * limitations under the License.
  *
  */
-
-#include <ignition/msgs/altimeter.pb.h>
+#include <ignition/msgs/air_pressure_sensor.pb.h>
 
 #include <ignition/plugin/Register.hh>
 
@@ -25,10 +24,9 @@
 #include <ignition/transport/Node.hh>
 
 #include <ignition/sensors/SensorFactory.hh>
-#include <ignition/sensors/AltimeterSensor.hh>
+#include <ignition/sensors/AirPressureSensor.hh>
 
-#include "ignition/gazebo/components/Altimeter.hh"
-#include "ignition/gazebo/components/LinearVelocity.hh"
+#include "ignition/gazebo/components/AirPressure.hh"
 #include "ignition/gazebo/components/Name.hh"
 #include "ignition/gazebo/components/ParentEntity.hh"
 #include "ignition/gazebo/components/Pose.hh"
@@ -36,59 +34,60 @@
 #include "ignition/gazebo/EntityComponentManager.hh"
 #include "ignition/gazebo/Util.hh"
 
-#include "Altimeter.hh"
+#include "AirPressure.hh"
 
 using namespace ignition;
 using namespace gazebo;
 using namespace systems;
 
-/// \brief Private Altimeter data class.
-class ignition::gazebo::systems::AltimeterPrivate
+/// \brief Private AirPressure data class.
+class ignition::gazebo::systems::AirPressurePrivate
 {
-  /// \brief A map of altimeter entity to its vertical reference
+  /// \brief A map of air pressure entity to its vertical reference
   public: std::unordered_map<Entity,
-      std::unique_ptr<sensors::AltimeterSensor>> entitySensorMap;
+      std::unique_ptr<sensors::AirPressureSensor>> entitySensorMap;
 
   /// \brief Ign-sensors sensor factory for creating sensors
   public: sensors::SensorFactory sensorFactory;
 
-  /// \brief Create altimeter sensor
+  /// \brief Create air pressure sensor
   /// \param[in] _ecm Mutable reference to ECM.
-  public: void CreateAltimeterEntities(EntityComponentManager &_ecm);
+  public: void CreateAirPressureEntities(EntityComponentManager &_ecm);
 
-  /// \brief Update altimeter sensor data based on physics data
+  /// \brief Update air pressure sensor data based on physics data
   /// \param[in] _ecm Immutable reference to ECM.
-  public: void UpdateAltimeters(const EntityComponentManager &_ecm);
+  public: void UpdateAirPressures(const EntityComponentManager &_ecm);
 
-  /// \brief Remove altimeter sensors if their entities have been removed from
-  /// simulation.
+  /// \brief Remove air pressure sensors if their entities have been removed
+  /// from simulation.
   /// \param[in] _ecm Immutable reference to ECM.
-  public: void RemoveAltimeterEntities(const EntityComponentManager &_ecm);
+  public: void RemoveAirPressureEntities(const EntityComponentManager &_ecm);
 };
 
 //////////////////////////////////////////////////
-Altimeter::Altimeter() : System(), dataPtr(std::make_unique<AltimeterPrivate>())
+AirPressure::AirPressure() :
+  System(), dataPtr(std::make_unique<AirPressurePrivate>())
 {
 }
 
 //////////////////////////////////////////////////
-Altimeter::~Altimeter() = default;
+AirPressure::~AirPressure() = default;
 
 //////////////////////////////////////////////////
-void Altimeter::PreUpdate(const UpdateInfo &/*_info*/,
+void AirPressure::PreUpdate(const UpdateInfo &/*_info*/,
     EntityComponentManager &_ecm)
 {
-  this->dataPtr->CreateAltimeterEntities(_ecm);
+  this->dataPtr->CreateAirPressureEntities(_ecm);
 }
 
 //////////////////////////////////////////////////
-void Altimeter::PostUpdate(const UpdateInfo &_info,
+void AirPressure::PostUpdate(const UpdateInfo &_info,
                            const EntityComponentManager &_ecm)
 {
   // Only update and publish if not paused.
   if (!_info.paused)
   {
-    this->dataPtr->UpdateAltimeters(_ecm);
+    this->dataPtr->UpdateAirPressures(_ecm);
 
     for (auto &it : this->dataPtr->entitySensorMap)
     {
@@ -98,31 +97,31 @@ void Altimeter::PostUpdate(const UpdateInfo &_info,
     }
   }
 
-  this->dataPtr->RemoveAltimeterEntities(_ecm);
+  this->dataPtr->RemoveAirPressureEntities(_ecm);
 }
 
 //////////////////////////////////////////////////
-void AltimeterPrivate::CreateAltimeterEntities(EntityComponentManager &_ecm)
+void AirPressurePrivate::CreateAirPressureEntities(EntityComponentManager &_ecm)
 {
-  // Create altimeters
-  _ecm.EachNew<components::Altimeter, components::ParentEntity>(
+  // Create air pressure sensors
+  _ecm.EachNew<components::AirPressure, components::ParentEntity>(
     [&](const Entity &_entity,
-        const components::Altimeter *_altimeter,
+        const components::AirPressure *_airPressure,
         const components::ParentEntity *_parent)->bool
       {
         // create sensor
         std::string sensorScopedName = scopedName(_entity, _ecm, "::", false);
-        sdf::Sensor data = _altimeter->Data();
+        sdf::Sensor data = _airPressure->Data();
         data.SetName(sensorScopedName);
         // check topic
         if (!data.Topic().empty())
         {
-          std::string topic = scopedName(_entity, _ecm) + "/altimeter";
+          std::string topic = scopedName(_entity, _ecm) + "/air_pressure";
           data.SetTopic(topic);
         }
-        std::unique_ptr<sensors::AltimeterSensor> sensor =
+        std::unique_ptr<sensors::AirPressureSensor> sensor =
             this->sensorFactory.CreateSensor<
-            sensors::AltimeterSensor>(data);
+            sensors::AirPressureSensor>(data);
         // set sensor parent
         std::string parentName = _ecm.Component<components::Name>(
             _parent->Data())->Data();
@@ -131,9 +130,7 @@ void AltimeterPrivate::CreateAltimeterEntities(EntityComponentManager &_ecm)
         // Get initial pose of sensor and set the reference z pos
         // The WorldPose component was just created and so it's empty
         // We'll compute the world pose manually here
-        double verticalReference = worldPose(_entity, _ecm).Pos().Z();
-        sensor->SetVerticalReference(verticalReference);
-        sensor->SetPosition(verticalReference);
+        sensor->SetVerticalPosition(worldPose(_entity, _ecm).Pos().Z());
 
         this->entitySensorMap.insert(
             std::make_pair(_entity, std::move(sensor)));
@@ -143,26 +140,21 @@ void AltimeterPrivate::CreateAltimeterEntities(EntityComponentManager &_ecm)
 }
 
 //////////////////////////////////////////////////
-void AltimeterPrivate::UpdateAltimeters(const EntityComponentManager &_ecm)
+void AirPressurePrivate::UpdateAirPressures(const EntityComponentManager &_ecm)
 {
-  _ecm.Each<components::Altimeter, components::WorldPose,
-            components::WorldLinearVelocity>(
+  _ecm.Each<components::AirPressure, components::WorldPose>(
     [&](const Entity &_entity,
-        const components::Altimeter * /*_altimeter*/,
-        const components::WorldPose *_worldPose,
-        const components::WorldLinearVelocity *_worldLinearVel)->bool
+        const components::AirPressure * /*_airPressure*/,
+        const components::WorldPose *_worldPose)->bool
       {
         auto it = this->entitySensorMap.find(_entity);
         if (it != this->entitySensorMap.end())
         {
-          math::Vector3d linearVel;
-          math::Pose3d worldPose = _worldPose->Data();
-          it->second->SetPosition(worldPose.Pos().Z());
-          it->second->SetVerticalVelocity(_worldLinearVel->Data().Z());
+          it->second->SetVerticalPosition(_worldPose->Data().Pos().Z());
         }
         else
         {
-          ignerr << "Failed to update altimeter: " << _entity << ". "
+          ignerr << "Failed to update air pressure: " << _entity << ". "
                  << "Entity not found." << std::endl;
         }
 
@@ -171,17 +163,17 @@ void AltimeterPrivate::UpdateAltimeters(const EntityComponentManager &_ecm)
 }
 
 //////////////////////////////////////////////////
-void AltimeterPrivate::RemoveAltimeterEntities(
+void AirPressurePrivate::RemoveAirPressureEntities(
     const EntityComponentManager &_ecm)
 {
-  _ecm.EachRemoved<components::Altimeter>(
+  _ecm.EachRemoved<components::AirPressure>(
     [&](const Entity &_entity,
-        const components::Altimeter *)->bool
+        const components::AirPressure *)->bool
       {
         auto sensorId = this->entitySensorMap.find(_entity);
         if (sensorId == this->entitySensorMap.end())
         {
-          ignerr << "Internal error, missing altimeter sensor for entity ["
+          ignerr << "Internal error, missing air pressure sensor for entity ["
                  << _entity << "]" << std::endl;
           return true;
         }
@@ -192,9 +184,9 @@ void AltimeterPrivate::RemoveAltimeterEntities(
       });
 }
 
-IGNITION_ADD_PLUGIN(Altimeter, System,
-  Altimeter::ISystemPreUpdate,
-  Altimeter::ISystemPostUpdate
+IGNITION_ADD_PLUGIN(AirPressure, System,
+  AirPressure::ISystemPreUpdate,
+  AirPressure::ISystemPostUpdate
 )
 
-IGNITION_ADD_PLUGIN_ALIAS(Altimeter, "ignition::gazebo::systems::Altimeter")
+IGNITION_ADD_PLUGIN_ALIAS(AirPressure, "ignition::gazebo::systems::AirPressure")

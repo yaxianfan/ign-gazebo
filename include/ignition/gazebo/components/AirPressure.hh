@@ -14,8 +14,8 @@
  * limitations under the License.
  *
 */
-#ifndef IGNITION_GAZEBO_COMPONENTS_ALTIMETER_HH_
-#define IGNITION_GAZEBO_COMPONENTS_ALTIMETER_HH_
+#ifndef IGNITION_GAZEBO_COMPONENTS_AIRPRESSURE_HH_
+#define IGNITION_GAZEBO_COMPONENTS_AIRPRESSURE_HH_
 
 #include <sdf/Sensor.hh>
 
@@ -32,10 +32,11 @@ namespace gazebo
 inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
 namespace components
 {
-  /// \brief A component type that contains an altimeter sensor,
-  /// sdf::Altimeter, information.
-  using Altimeter = Component<sdf::Sensor, class AltimeterTag>;
-  IGN_GAZEBO_REGISTER_COMPONENT("ign_gazebo_components.Altimeter", Altimeter)
+  /// \brief A component type that contains an air pressure sensor,
+  /// sdf::AirPressure, information.
+  using AirPressure = Component<sdf::Sensor, class AirPressureTag>;
+  IGN_GAZEBO_REGISTER_COMPONENT("ign_gazebo_components.AirPressure",
+      AirPressure)
 }
 }
 }
