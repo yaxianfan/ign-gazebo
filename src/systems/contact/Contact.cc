@@ -100,7 +100,11 @@ class ignition::gazebo::systems::ContactPrivate
 };
 
 //////////////////////////////////////////////////
+// cppcheck-suppress unmatchedSuppression
+// cppcheck-suppress *
 void ContactSensor::Load(const sdf::ElementPtr &_sdf, std::string _topic,
+// cppcheck-suppress unmatchedSuppression
+// cppcheck-suppress *
                          std::vector<Entity> _collisionEntities)
 {
   this->collisionEntities = std::move(_collisionEntities);
