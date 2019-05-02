@@ -15,7 +15,6 @@
  *
  */
 
-#include <sdf/Geometry.hh>
 #include <sdf/Light.hh>
 #include <sdf/Model.hh>
 #include <sdf/World.hh>
@@ -63,6 +62,10 @@ LevelManager::LevelManager(SimulationRunner *_runner, const bool _useLevels)
 
   this->ReadLevelPerformerInfo();
   this->CreatePerformers();
+
+  std::string service = "/world/";
+  service += this->runner->sdfWorld->Name() + "/level/add_performer";
+  this->node.Advertise(service, &LevelManager::OnAddPerformer, this);
 }
 
 /////////////////////////////////////////////////
@@ -174,9 +177,47 @@ void LevelManager::ReadPerformers(const sdf::ElementPtr &_sdf)
 
   if (this->useLevels && performerMap.empty())
   {
-    ignwarn << "Asked to use levels but no <performer>s were found - levels "
-               "will not work.\n";
+    ignwarn << "Asked to use levels but no <performer>s were found. Levels "
+               "will not work until performers are added.\n";
   }
+}
+
+/////////////////////////////////////////////////
+bool LevelManager::OnAddPerformer(const msgs::StringMsg &_req,
+                                  msgs::Boolean &_rep)
+{
+  _rep.set_data(false);
+  std::string name = _req.data();
+
+  // Find the model entity
+  Entity modelEntity = this->runner->entityCompMgr.EntityByComponents(
+      components::Name(name));
+  if (modelEntity == kNullEntity)
+  {
+    ignerr << "Unable to find model with name[" << name << "]. "
+      << "Performer not created\n";
+    return true;
+  }
+
+  // Check to see if the performer has already been added.
+  if (this->performerMap.find(name) == this->performerMap.end())
+  {
+    sdf::Geometry geom;
+    geom.SetType(sdf::GeometryType::BOX);
+    sdf::Box boxShape;
+    boxShape.SetSize({2, 2, 2});
+    geom.SetBoxShape(boxShape);
+    this->performersToAdd.push_back(std::make_pair(name, geom));
+    _rep.set_data(true);
+  }
+  else
+  {
+    ignwarn << "Performer with name[" << name << "] "
+      << "has already been added.\n";
+  }
+
+  // The response succeeded.
+  return true;
 }
 
 /////////////////////////////////////////////////
@@ -337,6 +378,41 @@ void LevelManager::UpdateLevelsState()
 
   std::vector<Entity> levelsToLoad;
   std::vector<Entity> levelsToUnload;
+
+  std::list<std::pair<std::string, sdf::Geometry>>::iterator iter =
+    this->performersToAdd.begin();
+  while (iter != this->performersToAdd.end())
+  {
+    // Find the model entity
+    Entity modelEntity = this->runner->entityCompMgr.EntityByComponents(
+        components::Name(iter->first));
+    if (modelEntity == kNullEntity)
+    {
+      ignwarn << "Attempting to add performer with name ["
+        << iter->first << "] "
+        << ", but the entity could not be found. Another attempt will be made "
+        << "in the next iteration.\n";
+      ++iter;
+    }
+
+    // Create the performer entity
+    Entity performerEntity = this->runner->entityCompMgr.CreateEntity();
+    this->performerMap[iter->first] = performerEntity;
+
+    this->runner->entityCompMgr.CreateComponent(performerEntity,
+        components::Performer());
+    this->runner->entityCompMgr.CreateComponent(performerEntity,
+        components::PerformerLevels());
+    this->runner->entityCompMgr.CreateComponent(performerEntity,
+        components::Name("perf_" + iter->first));
+    this->runner->entityCompMgr.CreateComponent(performerEntity,
+        components::Geometry(iter->second));
+
+    // Make the model a parent of this performer
+    this->entityCreator->SetParent(
+        this->performerMap[iter->first], modelEntity);
+    iter = this->performersToAdd.erase(iter);
+  }
 
   {
     IGN_PROFILE("DefaultLevel");

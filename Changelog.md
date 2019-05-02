@@ -2,7 +2,11 @@
 
 ### Ignition Gazebo 2.X.X
 
+1. Level performers can be added at runtime using a service call. See the
+   levels tutorial for more information.
+    * [Pull Request xxx](https://bitbucket.org/ignitionrobotics/ign-gazebo/pull-requests/xxx)
 1. Support conversion and serialization of scene and light components
+
     * [Pull Request 297](https://bitbucket.org/ignitionrobotics/ign-gazebo/pull-requests/297)
 
 1. Use scene ambient and background color information in sensor
