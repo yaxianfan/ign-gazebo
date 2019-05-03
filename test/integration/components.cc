@@ -20,6 +20,7 @@
 #include <sdf/Cylinder.hh>
 #include <sdf/Element.hh>
 #include <sdf/Magnetometer.hh>
+#include <sdf/Sensor.hh>
 
 #include "ignition/gazebo/components/Altimeter.hh"
 #include "ignition/gazebo/components/AngularVelocity.hh"
@@ -74,8 +75,8 @@ class ComponentsTest : public ::testing::Test
 /////////////////////////////////////////////////
 TEST_F(ComponentsTest, Altimeter)
 {
-  auto data1 = std::make_shared<sdf::Element>();
-  auto data2 = std::make_shared<sdf::Element>();
+  sdf::Sensor data1;
+  sdf::Sensor data2;
 
   // Create components
   auto comp11 = components::Altimeter(data1);
