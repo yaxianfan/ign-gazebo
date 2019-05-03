@@ -17,7 +17,10 @@
 #ifndef IGNITION_GAZEBO_COMPONENTS_SERIALIZATION_HH_
 #define IGNITION_GAZEBO_COMPONENTS_SERIALIZATION_HH_
 
+#include <ignition/msgs/double_v.pb.h>
 #include <ignition/msgs/sensor.pb.h>
+
+#include <vector>
 #include <sdf/Sensor.hh>
 
 #include <ignition/gazebo/Conversions.hh>
@@ -50,6 +53,32 @@ inline std::istream &operator>>(std::istream &_in, Sensor &_sensor)
   _sensor = ignition::gazebo::convert<sdf::Sensor>(msg);
   return _in;
 }
+}
+
+/// \brief Stream insertion operator for `sdf::Sensor`.
+/// \param[in] _out Output stream.
+/// \param[in] _sensor Sensor to stream
+/// \return The stream.
+inline std::ostream &operator<<(std::ostream &_out,
+                                const std::vector<double> &_vec)
+{
+  ignition::msgs::Double_V msg;
+  *msg.mutable_data() = {_vec.begin(), _vec.end()};
+  msg.SerializeToOstream(&_out);
+  return _out;
+}
+
+/// \brief Stream extraction operator for `sdf::Sensor`.
+/// \param[in] _in Input stream.
+/// \param[out] _sensor Sensor to populate
+/// \return The stream.
+inline std::istream &operator>>(std::istream &_in, std::vector<double> &_vec)
+{
+  ignition::msgs::Double_V msg;
+  msg.ParseFromIstream(&_in);
+
+  _vec = {msg.data().begin(), msg.data().end()};
+  return _in;
 }
 
 #endif
