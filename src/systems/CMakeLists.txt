@@ -1,7 +1,3 @@
-set(IGNITION_GAZEBO_PLUGIN_INSTALL_DIR
-  ${CMAKE_INSTALL_PREFIX}/${IGN_LIB_INSTALL_DIR}/ign-${IGN_DESIGNATION}-${PROJECT_VERSION_MAJOR}/plugins
-)
-
 #################################################
 # gz_add_system(<system>
 #              SOURCES <sources>
@@ -76,6 +72,7 @@ endfunction()
 
 add_subdirectory(altimeter)
 add_subdirectory(apply_joint_force)
+add_subdirectory(battery_plugin)
 add_subdirectory(contact)
 add_subdirectory(diff_drive)
 add_subdirectory(imu)
@@ -90,3 +87,4 @@ add_subdirectory(sensors)
 add_subdirectory(user_commands)
 add_subdirectory(scene_broadcaster)
 add_subdirectory(touch_plugin)
+add_subdirectory(wind_effects)

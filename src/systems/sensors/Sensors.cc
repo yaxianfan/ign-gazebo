@@ -66,7 +66,7 @@ Sensors::Sensors() : System(), dataPtr(std::make_unique<SensorsPrivate>())
 Sensors::~Sensors() = default;
 
 //////////////////////////////////////////////////
-void Sensors::Configure(const Entity &/*_id*/,
+void Sensors::Configure(const Entity & /*_id*/,
     const std::shared_ptr<const sdf::Element> &_sdf,
     EntityComponentManager &/*_ecm*/,
     EventManager &/*_eventMgr*/)
