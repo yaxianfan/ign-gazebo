@@ -387,6 +387,7 @@ bool SimulationRunner::Run(const uint64_t _iterations)
       return true;
     }
   }
+
   // Keep track of wall clock time. Only start the realTimeWatch if this
   // runner is not paused.
   if (!this->currentInfo.paused)
