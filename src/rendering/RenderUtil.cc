@@ -18,18 +18,9 @@
 #include <map>
 #include <vector>
 
-#include <sdf/Element.hh>
-#include <sdf/Light.hh>
-#include <sdf/Link.hh>
-#include <sdf/Model.hh>
-#include <sdf/parser.hh>
-#include <sdf/Scene.hh>
-#include <sdf/SDFImpl.hh>
-#include <sdf/Visual.hh>
-
-#include <ignition/math/Color.hh>
+#include <sdf/sdf.hh>
+#include <ignition/common/Time.hh>
 #include <ignition/math/Helpers.hh>
-#include <ignition/math/Pose3.hh>
 
 #include <ignition/rendering/RenderEngine.hh>
 #include <ignition/rendering/RenderingIface.hh>
@@ -146,6 +137,9 @@ class ignition::gazebo::RenderUtilPrivate
   public: std::function<
       std::string(sdf::ElementPtr, const std::string &)>
       createSensorCb;
+
+  /// \brief Entity currently being selected.
+  public: rendering::NodePtr selectedEntity;
 };
 
 //////////////////////////////////////////////////
@@ -312,7 +306,8 @@ void RenderUtil::Update()
   for (auto &pose : entityPoses)
   {
     auto node = this->dataPtr->sceneManager.NodeById(pose.first);
-    if (node)
+    if (node && node != this->dataPtr->selectedEntity &&
+        node->Parent() != this->dataPtr->selectedEntity)
       node->SetLocalPose(pose.second);
   }
 }
@@ -475,7 +470,6 @@ void RenderUtilPrivate::UpdateRenderingEntities(
         const components::Visual *,
         const components::Pose *_pose)->bool
       {
-        this->entityPoses[_entity] = _pose->Data();
         this->entityPoses[_entity] = _pose->Data();
         return true;
       });
@@ -658,4 +652,16 @@ void RenderUtil::SetEnableSensors(bool _enable,
 {
   this->dataPtr->enableSensors = _enable;
   this->dataPtr->createSensorCb = _createSensorCb;
+}
+
+/////////////////////////////////////////////////
+SceneManager &RenderUtil::SceneManager()
+{
+  return this->dataPtr->sceneManager;
+}
+
+/////////////////////////////////////////////////
+void RenderUtil::SetSelectedEntity(rendering::NodePtr _node)
+{
+  this->dataPtr->selectedEntity = _node;
 }
