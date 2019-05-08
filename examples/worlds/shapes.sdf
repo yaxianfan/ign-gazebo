@@ -89,6 +89,13 @@
 
       </plugin>
 
+      <!-- Entity tree -->
+      <plugin filename="EntityTree" name="Entity tree">
+        <ignition-gui>
+          <title>Entity tree</title>
+        </ignition-gui>
+      </plugin>
+
     </gui>
 
     <light type="directional" name="sun">
