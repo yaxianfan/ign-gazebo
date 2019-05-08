@@ -23,7 +23,7 @@
 #include <ignition/gazebo/Export.hh>
 
 #include <ignition/gazebo/components/Factory.hh>
-#include "ignition/gazebo/components/Component.hh"
+#include <ignition/gazebo/components/Component.hh>
 #include <ignition/gazebo/components/Serialization.hh>
 
 namespace ignition
