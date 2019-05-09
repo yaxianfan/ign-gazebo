@@ -37,6 +37,7 @@ function(gz_add_gui_plugin plugin_name)
       TINYXML2::TINYXML2
       ${gz_add_gui_plugin_PUBLIC_LINK_LIBS}
     PRIVATE
+      ignition-gazebo${PROJECT_VERSION_MAJOR}-gui
       ignition-plugin${IGN_PLUGIN_VER}::register
       ${gz_add_gui_plugin_PRIVATE_LINK_LIBS}
   )
@@ -46,3 +47,4 @@ endfunction()
 
 add_subdirectory(entity_tree)
 add_subdirectory(scene3d)
+add_subdirectory(transform_control)
