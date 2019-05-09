@@ -1,6 +1,5 @@
 add_subdirectory(rendering)
 add_subdirectory(gui)
-add_subdirectory(cmd)
 add_subdirectory(systems)
 add_subdirectory(msgs)
 
@@ -38,6 +37,8 @@ target_link_libraries(${ign_lib_target}
     ignition-gazebo${PROJECT_VERSION_MAJOR}
     ignition-gazebo${PROJECT_VERSION_MAJOR}-gui
 )
+# cmd folder must be after the ign component
+add_subdirectory(cmd)
 
 
 set (sources
