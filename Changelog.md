@@ -2,6 +2,10 @@
 
 ### Ignition Gazebo 2.X.X
 
+1. Level performers can be added at runtime using a service call. See the
+   levels tutorial for more information.
+    * [Pull Request xxx](https://bitbucket.org/ignitionrobotics/ign-gazebo/pull-requests/xxx)
+
 1. Port Scene3D gui plugin from ign-gui. Renamed to GzScene3D.
     * [Pull Request 315](https://bitbucket.org/ignitionrobotics/ign-gazebo/pull-requests/315)
 
