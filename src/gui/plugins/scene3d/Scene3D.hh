@@ -18,6 +18,9 @@
 #ifndef IGNITION_GAZEBO_GUI_SCENE3D_HH_
 #define IGNITION_GAZEBO_GUI_SCENE3D_HH_
 
+#include <ignition/msgs/boolean.pb.h>
+#include <ignition/msgs/stringmsg.pb.h>
+
 #include <string>
 #include <memory>
 #include <mutex>
@@ -28,9 +31,9 @@
 #include <ignition/math/Vector3.hh>
 
 #include <ignition/common/MouseEvent.hh>
+#include <ignition/common/KeyEvent.hh>
 
 #include <ignition/rendering/Camera.hh>
-#include <ignition/rendering/OrbitViewController.hh>
 
 #include <ignition/gazebo/gui/GuiSystem.hh>
 
@@ -82,6 +85,12 @@ inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
     public: void Update(const UpdateInfo &_info,
         EntityComponentManager &_ecm) override;
 
+    /// \brief Callback for a transform mode request
+    /// \param[in] _msg Request message to set a new transform mode
+    /// \param[in] _res Response data
+    /// \return True if the request is received
+    private: bool OnTransformMode(const msgs::StringMsg &_msg,
+        msgs::Boolean &_res);
 
     /// \internal
     /// \brief Pointer to private data.
@@ -114,14 +123,28 @@ inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
     /// \brief Set the renderer
     public: class RenderUtil *RenderUtil() const;
 
+    /// \brief Set the transform mode
+    /// \param[in] _mode New transform mode to set to
+    public: void SetTransformMode(const std::string &_mode);
+
     /// \brief New mouse event triggered
     /// \param[in] _e New mouse event
     /// \param[in] _drag Mouse move distance
     public: void NewMouseEvent(const common::MouseEvent &_e,
         const math::Vector2d &_drag = math::Vector2d::Zero);
 
-    /// \brief Handle mouse event for view control
+    /// \brief New key event triggered
+    /// \param[in] _e New key event
+    public: void NewKeyEvent(const common::KeyEvent &_e);
+
+    /// \brief Handle mouse events
     private: void HandleMouseEvent();
+
+    /// \brief Handle mouse event for view control
+    private: void HandleMouseViewControl();
+
+    /// \brief Handle mouse event for transform control
+    private: void HandleMouseTransformControl();
 
     /// \brief Retrieve the first point on a surface in the 3D scene hit by a
     /// ray cast from the given 2D screen coordinates.
@@ -135,6 +158,9 @@ inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
 
     /// \brief Initial Camera pose
     public: math::Pose3d cameraPose = math::Pose3d(0, 0, 2, 0, 0.4, 0);
+
+    /// \brief Name of the world
+    public: std::string worldName;
 
     /// \brief True if engine has been initialized;
     public: bool initialized = false;
@@ -203,6 +229,14 @@ inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
     /// \param[in] _pose Pose to set the camera to
     public: void SetCameraPose(const math::Pose3d &_pose);
 
+    /// \brief Set the transform mode
+    /// \param[in] _mode New transform mode to set to
+    public: void SetTransformMode(const std::string &_mode);
+
+    /// \brief Set the world name
+    /// \param[in] _name Name of the world to set to.
+    public: void SetWorldName(const std::string &_name);
+
     /// \brief Slot called when thread is ready to be started
     public Q_SLOTS: void Ready();
 
@@ -217,6 +251,12 @@ inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
 
     // Documentation inherited
     protected: virtual void wheelEvent(QWheelEvent *_e) override;
+
+    // Documentation inherited
+    protected: virtual void keyPressEvent(QKeyEvent *_e) override;
+
+    // Documentation inherited
+    protected: virtual void keyReleaseEvent(QKeyEvent *_e) override;
 
     /// \brief Overrides the paint event to render the render engine
     /// camera view
