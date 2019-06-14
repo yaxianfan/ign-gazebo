@@ -192,6 +192,9 @@ void LevelManager::ReadPerformers(const sdf::ElementPtr &_sdf)
           components::Name(name));
       this->runner->entityCompMgr.CreateComponent(performerEntity,
           components::Geometry(geometry));
+
+      ignmsg << "Created performer [" << performerEntity << " / " << name << "]"
+             << std::endl;
     }
   }
 
@@ -504,10 +507,15 @@ void LevelManager::UpdateLevelsState()
         // loop through levels and check for intersections
         // Add all levels with inersections to the levelsToLoad even if they
         // are currently active.
-        this->runner->entityCompMgr.Each<components::Level, components::Pose,
-                                         components::Geometry,
-                                         components::LevelBuffer >(
-            [&](const Entity &_entity, const components::Level *,
+        this->runner->entityCompMgr.Each<
+                components::Level,
+                components::Name,
+                components::Pose,
+                components::Geometry,
+                components::LevelBuffer >(
+            [&](const Entity &_entity,
+                const components::Level *,
+                const components::Name *_name,
                 const components::Pose *_pose,
                 const components::Geometry *_levelGeometry,
                 const components::LevelBuffer *_levelBuffer) -> bool
@@ -516,6 +524,12 @@ void LevelManager::UpdateLevelsState()
                 // Check if the performer is in this level
                 // assume a box for now
                 auto box = _levelGeometry->Data().BoxShape();
+                if (nullptr == box)
+                {
+                  ignerr << "Level [" << _name->Data()
+                         << "]'s geometry is not a box." << std::endl;
+                  return true;
+                }
                 auto buffer = _levelBuffer->Data();
                 auto center = _pose->Data().Pos();
                 math::AxisAlignedBox region{center - box->Size() / 2,
@@ -638,6 +652,7 @@ void LevelManager::UpdateLevelsState()
   auto pendingEnd = this->activeLevels.end();
   for (const auto &toUnload : levelsToUnload)
   {
+    ignmsg << "Unloaded level [" << toUnload << "]" << std::endl;
     pendingEnd = std::remove(this->activeLevels.begin(), pendingEnd, toUnload);
   }
   // Erase from vector
