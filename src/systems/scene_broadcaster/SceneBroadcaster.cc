@@ -202,7 +202,7 @@ void SceneBroadcaster::Configure(
     EntityComponentManager &_ecm, EventManager &)
 {
   // World
-  auto name = _ecm.Component<components::Name>(_entity);
+  const components::Name *name = _ecm.Component<components::Name>(_entity);
   if (name == nullptr)
   {
     ignerr << "World with id: " << _entity
@@ -259,6 +259,7 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &_info,
        this->dataPtr->statePublishPeriod;
   auto shouldPublish = this->dataPtr->statePub.HasConnections() &&
        (changeEvent || itsPubTime);
+
   if (this->dataPtr->stateServiceRequest || shouldPublish)
   {
     set(this->dataPtr->stepMsg.mutable_stats(), _info);
@@ -269,12 +270,15 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &_info,
       this->dataPtr->stepMsg.mutable_state()->CopyFrom(_manager.State());
     }
     // Otherwise publish just selected components
-    else
+    else if (shouldPublish)
     {
-      this->dataPtr->stepMsg.mutable_state()->CopyFrom(_manager.State({},
-          {components::Pose::typeId}));
+      IGN_PROFILE_BEGIN("SceneBroadcast::1");
+      _manager.State(*this->dataPtr->stepMsg.mutable_state(),
+          {}, {components::Pose::typeId});
+      IGN_PROFILE_END();
     }
 
+      IGN_PROFILE_BEGIN("SceneBroadcast::2");
     // Full state on demand
     if (this->dataPtr->stateServiceRequest)
     {
@@ -290,6 +294,7 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &_info,
       this->dataPtr->statePub.Publish(this->dataPtr->stepMsg);
       this->dataPtr->lastStatePubTime = now;
     }
+      IGN_PROFILE_END();
   }
 }
 
