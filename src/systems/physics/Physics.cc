@@ -727,6 +727,19 @@ void PhysicsPrivate::UpdatePhysics(EntityComponentManager &_ecm)
               canonicalPoseComp->Data()));
         }
 
+        const components::Static *staticComp =
+          _ecm.Component<components::Static>(_entity);
+        if (staticComp && staticComp->Data())
+        {
+          auto worldPoseComp = _ecm.Component<components::WorldPose>(_entity);
+          if (worldPoseComp)
+          {
+            _ecm.SetChanged(_entity, components::WorldPose::typeId,
+                worldPoseComp->SetData(_poseCmd->Data() *
+                  canonicalPoseComp->Data(), this->dataPtr->pose3Eql));
+          }
+        }
+
         return true;
       });
 
@@ -773,6 +786,12 @@ void PhysicsPrivate::UpdateSim(EntityComponentManager &_ecm) const
           components::Pose *_pose,
           const components::ParentEntity *_parent)->bool
       {
+        // Skip if the parent is static.
+        const components::Static *staticComp =
+          _ecm.Component<components::Static>(_parent->Data());
+        if (staticComp && staticComp->Data())
+          return true;
+
         auto linkIt = this->entityLinkMap.find(_entity);
         if (linkIt != this->entityLinkMap.end())
         {

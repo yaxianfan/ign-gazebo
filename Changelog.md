@@ -2,6 +2,9 @@
 
 ### Ignition Gazebo 2.X.X
 
+1. Improve physics system peformance by skipping static model updates.
+    * [Pull Request 377](https://bitbucket.org/ignitionrobotics/ign-gazebo/pull-requests/377)
+
 1. Add sdf parameter to battery to start draining only when robot has started moving
     * [Pull Request 370](https://bitbucket.org/ignitionrobotics/ign-gazebo/pull-requests/370)
 
