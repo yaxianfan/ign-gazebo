@@ -709,6 +709,18 @@ void PhysicsPrivate::UpdatePhysics(EntityComponentManager &_ecm)
               canonicalPoseComp->Data()));
         }
 
+        const components::Static *staticComp =
+          _ecm.Component<components::Static>(_entity);
+        if (staticComp && staticComp->Data())
+        {
+          auto worldPoseComp = _ecm.Component<components::WorldPose>(_entity);
+          if (worldPoseComp)
+          {
+            worldPoseComp->SetData(_poseCmd->Data() *
+              canonicalPoseComp->Data());
+          }
+        }
+
         return true;
       });
 
