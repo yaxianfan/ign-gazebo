@@ -716,8 +716,9 @@ void PhysicsPrivate::UpdatePhysics(EntityComponentManager &_ecm)
           auto worldPoseComp = _ecm.Component<components::WorldPose>(_entity);
           if (worldPoseComp)
           {
-            worldPoseComp->SetData(_poseCmd->Data() *
-              canonicalPoseComp->Data());
+            _ecm.SetChanged(_entity, components::WorldPose::typeId,
+                worldPoseComp->SetData(_poseCmd->Data() *
+                  canonicalPoseComp->Data(), this->dataPtr->pose3Eql));
           }
         }
 
