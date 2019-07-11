@@ -731,10 +731,12 @@ void PhysicsPrivate::UpdatePhysics(EntityComponentManager &_ecm)
           _ecm.Component<components::Static>(_entity);
         if (staticComp && staticComp->Data())
         {
-          auto worldPoseComp = _ecm.Component<components::WorldPose>(_entity);
+          std::cout << "Is static, need to update pose\n";
+          auto worldPoseComp = _ecm.Component<components::Pose>(_entity);
           if (worldPoseComp)
           {
-            _ecm.SetChanged(_entity, components::WorldPose::typeId,
+            std::cout << "Has World Pose Comp\n";
+            _ecm.SetChanged(_entity, components::Pose::typeId,
                 worldPoseComp->SetData(_poseCmd->Data() *
                   canonicalPoseComp->Data(), this->pose3Eql));
           }
