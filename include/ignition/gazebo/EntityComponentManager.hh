@@ -672,6 +672,11 @@ namespace ignition
       public: void SetChanged(
                   const Entity _entity, const ComponentTypeId _type, bool _c);
 
+      /// \brief Set whether changed components have been broadcast.
+      /// \param[in] _b True to indicate the changed components have been
+      /// broadcasted.
+      public: void SetComponentChangesBroadcasted(bool _b);
+
       /// \brief Mark all components as not changed.
       protected: void SetAllComponentsUnchanged();
 

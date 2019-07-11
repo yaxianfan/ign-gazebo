@@ -53,6 +53,7 @@ class ignition::gazebo::EntityComponentManagerPrivate
   public: std::map<ComponentTypeId,
           std::unique_ptr<ComponentStorageBase>> components;
 
+  /// \brief All the changed components.
   public: std::map<ComponentKey, bool> changedComponents;
 
   /// \brief A graph holding all entities, arranged according to their
@@ -87,6 +88,10 @@ class ignition::gazebo::EntityComponentManagerPrivate
 
   /// \brief Keep track of entities already used to ensure uniqueness.
   public: uint64_t entityCount{0};
+
+  /// \brief True if changedComponents has been broadcasted by a scene
+  /// broadcaster.
+  public: bool changesBroadcasted{false};
 };
 
 //////////////////////////////////////////////////
@@ -1109,7 +1114,13 @@ std::unordered_set<Entity> EntityComponentManager::Descendants(Entity _entity)
 //////////////////////////////////////////////////
 void EntityComponentManager::SetAllComponentsUnchanged()
 {
-  this->dataPtr->changedComponents.clear();
+  /// \todo(anyone) See the todo in SceneBroadcaster::PostUpdate which refers
+  /// back to this function.
+  if (this->dataPtr->changesBroadcasted)
+  {
+    this->dataPtr->changedComponents.clear();
+    this->dataPtr->changesBroadcasted = false;
+  }
 }
 
 /////////////////////////////////////////////////
@@ -1133,4 +1144,10 @@ void EntityComponentManager::SetChanged(
 
   if (iter != ecIter->second.end())
     this->dataPtr->changedComponents[*iter] = _c;
+}
+
+/////////////////////////////////////////////////
+void EntityComponentManager::SetComponentChangesBroadcasted(bool _b)
+{
+  this->dataPtr->changesBroadcasted = _b;
 }

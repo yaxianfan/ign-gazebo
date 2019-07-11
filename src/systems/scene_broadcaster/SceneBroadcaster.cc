@@ -262,6 +262,7 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &_info,
 
   if (this->dataPtr->stateServiceRequest || shouldPublish)
   {
+    std::unique_lock<std::mutex> lock(this->dataPtr->stateMutex);
     set(this->dataPtr->stepMsg.mutable_stats(), _info);
 
     // Publish full state if there are change events
@@ -275,6 +276,22 @@ void SceneBroadcaster::PostUpdate(const UpdateInfo &_info,
       IGN_PROFILE("SceneBroadcast::PostUpdate UpdateState");
       _manager.State(*this->dataPtr->stepMsg.mutable_state(),
           {}, {components::Pose::typeId});
+
+      /// \todo(anyone) The call to
+      /// EntityComponentManager::SetAllComponentsUnchanged() in
+      /// SimulationRunner::Step() can cause changes to be missed by the GUI
+      /// because the statPub publisher (above) only sends data out
+      /// periodically.
+      ///
+      /// The major problem with this call is that the changed components
+      /// map  will only be cleared if a SceneBroadcaster is present.
+      ///
+      /// The SceneBroadcaster is turning out be a vital system, for at
+      /// least the GUI and logging. We might consider building the
+      /// SceneBroadcaster in Gazebo so that this functionality is always
+      /// present.
+      const_cast<EntityComponentManager*>(
+          &_manager)->SetComponentChangesBroadcasted(true);
     }
 
     // Full state on demand
