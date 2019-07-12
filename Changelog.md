@@ -1,6 +1,6 @@
 ## Ignition Gazebo 2.x
 
-### Ignition Gazebo 2.X.X
+### Ignition Gazebo 2.3.0
 
 1. Improve physics system peformance by skipping static model updates.
     * [Pull Request 378](https://bitbucket.org/ignitionrobotics/ign-gazebo/pull-requests/378)
