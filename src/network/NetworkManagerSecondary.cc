@@ -119,6 +119,8 @@ void NetworkManagerSecondary::OnStep(
     {
       this->performers.insert(entityId);
 
+      this->dataPtr->ecm->SetState(affinityMsg.state());
+
       ignmsg << "Secondary [" << this->Namespace()
              << "] assigned affinity to performer [" << entityId << "]."
              << std::endl;

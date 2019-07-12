@@ -25,6 +25,7 @@
 #include "msgs/peer_control.pb.h"
 #include "msgs/simulation_step.pb.h"
 
+#include "ignition/gazebo/components/ParentEntity.hh"
 #include "ignition/gazebo/components/PerformerAffinity.hh"
 #include "ignition/gazebo/components/PerformerLevels.hh"
 #include "ignition/gazebo/Conversions.hh"
@@ -225,6 +226,9 @@ void NetworkManagerPrimary::PopulateAffinities(
   // Updated performer-to-level mapping - used to update affinities
   std::map<Entity, std::set<Entity>> lToPNew;
 
+  // Current level to secondary result
+  std::map<Entity, std::set<std::string>> lToSNew;
+
   // All performers
   std::set<Entity> allPerformers;
 
@@ -248,6 +252,10 @@ void NetworkManagerPrimary::PopulateAffinities(
       for (const auto &level : _perfLevels->Data())
       {
         lToPNew[level].insert(_entity);
+        if (currentAffinityComp)
+        {
+          lToSNew[level].insert(currentAffinityComp->Data());
+        }
       }
 
       return true;
@@ -293,15 +301,79 @@ void NetworkManagerPrimary::PopulateAffinities(
     return;
   }
 
-  // TODO(louise) Process level changes
+  if (pToSPrevious.size() != allPerformers.size())
+  {
+    ignerr << "There are [" << allPerformers.size()
+           << "] performers in total, but [" << pToSPrevious.size()
+           << "] performers have been assigned secondaries." << std::endl;
+    return;
+  }
+
+  // Check for level changes
+  for (const auto &[level, secs] : lToSNew)
+  {
+    // Level is only in one secondary, all good
+    if (secs.size() <= 1)
+      continue;
+
+    std::string msg{"Level [" + std::to_string(level) + "] is in [" +
+        std::to_string(secs.size()) + "] secondaries:"};
+    for (const auto &s : secs)
+      msg += " [" + s + "] ";
+    ignmsg << msg << std::endl;
+
+    // Count how many performers in this level are already in each secondary
+    std::map<std::string, int> secondaryCounts;
+    for (auto performer : lToPNew[level])
+    {
+      secondaryCounts[pToSPrevious[performer]]++;
+    }
+
+    // Choose to keep the level in the secondary with the most performers.
+    // If the numbers are the same, any can be chosen.
+    // FIXME(louise) We sometimes run into a situation where 2 levels are
+    // told to swap secondaries every iteration in a loop
+    std::string chosenSecondary;
+    int maxCount{0};
+    for (const auto &[secondary, count] : secondaryCounts)
+    {
+      if (count > maxCount)
+      {
+        chosenSecondary = secondary;
+        maxCount = count;
+      }
+    }
+
+    // For each performer in this level, move them to the chosen secondary if
+    // not there yet.
+    for (auto performer : lToPNew[level])
+    {
+      auto prevSecondary = pToSPrevious[performer];
+      if (prevSecondary == chosenSecondary)
+        continue;
+
+      ignmsg << "Reassigning performer [" << performer << "] from secondary ["
+             << prevSecondary << "] to secondary [" << chosenSecondary << "]"
+             << std::endl;
+
+      // Add new affinity
+      this->SetAffinity(performer, chosenSecondary, _msg.add_affinity());
+    }
+  }
 }
 
 //////////////////////////////////////////////////
 void NetworkManagerPrimary::SetAffinity(Entity _performer,
     const std::string &_secondary, private_msgs::PerformerAffinity *_msg)
 {
+  // Get performer model entity and all its children
+  auto parentModel = this->dataPtr->ecm->Component<components::ParentEntity>(
+      _performer)->Data();
+  auto entities = this->dataPtr->ecm->Descendants(parentModel);
+
   // Populate message
   _msg->mutable_entity()->set_id(_performer);
+  _msg->mutable_state()->CopyFrom(this->dataPtr->ecm->State(entities));
   _msg->set_secondary_prefix(_secondary);
 
   // Set component
