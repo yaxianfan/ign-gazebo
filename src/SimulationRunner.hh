@@ -49,6 +49,7 @@
 
 #include "network/NetworkManager.hh"
 #include "LevelManager.hh"
+#include "Barrier.hh"
 
 using namespace std::chrono_literals;
 
@@ -115,6 +116,9 @@ namespace ignition
 
       /// \brief Internal method for handling stop event (to prevent recursion)
       private: void OnStop();
+
+      /// \brief Stop and join all post update worker threads
+      private: void StopWorkerThreads();
 
       /// \brief Run the simulationrunner.
       /// \param[in] _iterations Number of iterations.
@@ -298,6 +302,8 @@ namespace ignition
       /// \brief Pending systems to be added to systems.
       private: std::vector<SystemPluginPtr> pendingSystems;
 
+      private: std::mutex consoleMutex;
+
       /// \brief Mutex to protect pendingSystems
       private: mutable std::mutex pendingSystemsMutex;
 
@@ -406,6 +412,11 @@ namespace ignition
 
       /// \brief Copy of the server configuration.
       public: ServerConfig serverConfig;
+
+      private: std::vector<std::thread> postUpdateThreads;
+      private: std::atomic<bool> postUpdateThreadsRunning;
+      private: std::unique_ptr<Barrier> postUpdateStartBarrier;
+      private: std::unique_ptr<Barrier> postUpdateStopBarrier;
 
       friend class LevelManager;
     };
