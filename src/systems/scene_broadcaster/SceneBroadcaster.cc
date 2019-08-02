@@ -138,8 +138,19 @@ class ignition::gazebo::systems::SceneBroadcasterPrivate
   /// \brief Dynamic pose publisher, for non-static model poses
   public: transport::Node::Publisher dyPosePub;
 
-  /// \brief Rate at which to publish dynamic poses
-  public: int dyPoseHertz{60};
+  /// \brief Rate at which to publish poses.
+  public: float posePeriod { 1.0/60.0 };
+
+  /// \brief Rate at which to publish dynamic poses.
+  public: float dyPosePeriod { 1.0/60.0 };
+
+  /// \brief Last time poses were published.
+  public: std::chrono::time_point<std::chrono::system_clock>
+      lastPosePubTime{std::chrono::system_clock::now()};
+
+  /// \brief Last time dynamic poses were published.
+  public: std::chrono::time_point<std::chrono::system_clock>
+      lastDyPosePubTime{std::chrono::system_clock::now()};
 
   /// \brief Scene publisher
   public: transport::Node::Publisher scenePub;
@@ -214,7 +225,10 @@ void SceneBroadcaster::Configure(
   this->dataPtr->worldName = name->Data();
 
   auto readHertz = _sdf->Get<int>("dynamic_pose_hertz", 60);
-  this->dataPtr->dyPoseHertz = readHertz.first;
+  if (readHertz.first > 0)
+  {
+    this->dataPtr->dyPosePeriod = 1.0/readHertz.first;
+  }
 
   // Add to graph
   {
@@ -309,6 +323,23 @@ void SceneBroadcasterPrivate::PoseUpdate(const UpdateInfo &_info,
   bool dyPoseConnections = this->dyPosePub.HasConnections();
   bool poseConnections = this->posePub.HasConnections();
 
+  auto now = std::chrono::system_clock::now();
+  bool poseReady =
+    std::chrono::duration<double>(now - this->lastPosePubTime).count() >
+    this->posePeriod;
+
+  bool dyPoseReady =
+    std::chrono::duration<double>(now - this->lastDyPosePubTime).count() >
+    this->dyPosePeriod;
+
+  bool doPose = poseConnections && poseReady;
+  bool doDyPose = dyPoseConnections && dyPoseReady;
+
+  if (!doPose && !doDyPose)
+  {
+    return;
+  }
+
   // Models
   _manager.Each<components::Model, components::Name, components::Pose,
                 components::Static>(
@@ -317,7 +348,7 @@ void SceneBroadcasterPrivate::PoseUpdate(const UpdateInfo &_info,
           const components::Pose *_poseComp,
           const components::Static *_staticComp) -> bool
       {
-        if (poseConnections)
+        if (doPose)
         {
           // Add to pose msg
           auto pose = poseMsg.add_pose();
@@ -326,7 +357,7 @@ void SceneBroadcasterPrivate::PoseUpdate(const UpdateInfo &_info,
           pose->set_id(_entity);
         }
 
-        if (dyPoseConnections && !_staticComp->Data())
+        if (doDyPose && !_staticComp->Data())
         {
           // Add to dynamic pose msg
           auto dyPose = dyPoseMsg.add_pose();
@@ -346,7 +377,7 @@ void SceneBroadcasterPrivate::PoseUpdate(const UpdateInfo &_info,
           const components::ParentEntity *_parentComp) -> bool
       {
         // Add to pose msg
-        if (poseConnections)
+        if (doPose)
         {
           auto pose = poseMsg.add_pose();
           msgs::Set(pose, _poseComp->Data());
@@ -357,7 +388,7 @@ void SceneBroadcasterPrivate::PoseUpdate(const UpdateInfo &_info,
         // Check whether parent model is static
         auto staticComp = _manager.Component<components::Static>(
           _parentComp->Data());
-        if (dyPoseConnections && !staticComp->Data())
+        if (doDyPose && !staticComp->Data())
         {
           // Add to dynamic pose msg
           auto dyPose = dyPoseMsg.add_pose();
@@ -369,17 +400,18 @@ void SceneBroadcasterPrivate::PoseUpdate(const UpdateInfo &_info,
         return true;
       });
 
-  if (dyPoseConnections)
+  if (doDyPose)
   {
     // Set the time stamp in the header
     dyPoseMsg.mutable_header()->mutable_stamp()->CopyFrom(
         convert<msgs::Time>(_info.simTime));
 
     this->dyPosePub.Publish(dyPoseMsg);
+    this->lastDyPosePubTime = now;
   }
 
   // Visuals
-  if (poseConnections)
+  if (doPose)
   {
     poseMsg.mutable_header()->mutable_stamp()->CopyFrom(
         convert<msgs::Time>(_info.simTime));
@@ -412,6 +444,7 @@ void SceneBroadcasterPrivate::PoseUpdate(const UpdateInfo &_info,
         });
 
     this->posePub.Publish(poseMsg);
+    this->lastPosePubTime = now;
   }
 }
 
@@ -477,22 +510,14 @@ void SceneBroadcasterPrivate::SetupTransport(const std::string &_worldName)
 
   // Pose info publisher
   std::string poseTopic{"pose/info"};
-
-  transport::AdvertiseMessageOptions poseAdvertOpts;
-  poseAdvertOpts.SetMsgsPerSec(60);
-  this->posePub = this->node->Advertise<msgs::Pose_V>(poseTopic,
-      poseAdvertOpts);
+  this->posePub = this->node->Advertise<msgs::Pose_V>(poseTopic);
 
   ignmsg << "Publishing pose messages on [" << opts.NameSpace() << "/"
          << poseTopic << "]" << std::endl;
 
   // Dynamic pose info publisher
   std::string dyPoseTopic{"dynamic_pose/info"};
-
-  transport::AdvertiseMessageOptions dyPoseAdvertOpts;
-  dyPoseAdvertOpts.SetMsgsPerSec(this->dyPoseHertz);
-  this->dyPosePub = this->node->Advertise<msgs::Pose_V>(dyPoseTopic,
-      dyPoseAdvertOpts);
+  this->dyPosePub = this->node->Advertise<msgs::Pose_V>(dyPoseTopic);
 
   ignmsg << "Publishing dynamic pose messages on [" << opts.NameSpace() << "/"
          << dyPoseTopic << "]" << std::endl;
