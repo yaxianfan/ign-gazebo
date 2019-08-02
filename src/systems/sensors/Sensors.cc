@@ -17,12 +17,13 @@
 
 #include <set>
 
-#include <ignition/common/Profiler.hh>
 #include <ignition/plugin/Register.hh>
 
 #include <sdf/Sensor.hh>
 
+#include <ignition/common/Profiler.hh>
 #include <ignition/common/Time.hh>
+
 #include <ignition/math/Helpers.hh>
 
 #include <ignition/rendering/Scene.hh>
@@ -161,7 +162,7 @@ void SensorsPrivate::WaitForInit()
     // We need rendering sensors to be available to initialize.
     this->renderCv.wait(lock, [this]()
     {
-      return this->doInit || !this->running;
+        return this->doInit || !this->running;
     });
 
     if (this->doInit)
@@ -185,7 +186,7 @@ void SensorsPrivate::RunOnce()
   std::unique_lock<std::mutex> lock(this->renderMutex);
   this->renderCv.wait(lock, [this]()
   {
-    return !this->running || this->updateAvailable;
+      return !this->running || this->updateAvailable;
   });
 
   if (!this->running)
@@ -341,8 +342,6 @@ void Sensors::PostUpdate(const UpdateInfo &_info,
 
   if (this->dataPtr->running && this->dataPtr->initialized)
   {
-    this->dataPtr->renderUtil.UpdateFromECM(_info, _ecm);
-
     auto time = math::durationToSecNsec(_info.simTime);
     auto t = common::Time(time.first, time.second);
 
@@ -374,6 +373,9 @@ void Sensors::PostUpdate(const UpdateInfo &_info,
       }
     }
     this->dataPtr->sensorMaskMutex.unlock();
+
+    this->dataPtr->renderUtil.UpdateFromECM(_info, _ecm,
+        !activeSensors.empty());
 
     if (!activeSensors.empty() ||
         this->dataPtr->renderUtil.PendingSensors() > 0)
